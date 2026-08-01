@@ -27,9 +27,20 @@ ADMIN_PASSWORD=یک-رمز-قوی-حداقل-۸-کاراکتر
 NODE_ENV=production
 ```
 
-4. در Settings سرویس، از بخش Networking یک Public Domain بسازید.
-5. پس از اولین اجرا با `ADMIN_EMAIL` و `ADMIN_PASSWORD` وارد شوید؛ در **پنل مدیریت → اتصال AI**، Base URL و API Key را وارد کنید.
-6. در پنل مدیریت، شناسه دقیق مدل‌های سرویس‌دهنده را بسازید و حداقل پلن هر مدل را انتخاب کنید.
+4. مطمئن شوید متغیر `DATABASE_URL` واقعاً به سرویس PostgreSQL اشاره می‌کند. اگر نام سرویس دیتابیس شما `Postgres` نیست، به‌جای نوشتن دستی مقدار، از **Add Reference** در Railway استفاده کنید و متغیر `DATABASE_URL` همان سرویس را انتخاب کنید.
+5. در Settings سرویس، از بخش Networking یک Public Domain بسازید.
+6. پس از اولین اجرا با `ADMIN_EMAIL` و `ADMIN_PASSWORD` وارد شوید؛ در **پنل مدیریت → اتصال AI**، Base URL و API Key را وارد کنید.
+7. در پنل مدیریت، شناسه دقیق مدل‌های سرویس‌دهنده را بسازید و حداقل پلن هر مدل را انتخاب کنید.
+
+## بررسی وضعیت استقرار
+
+آدرس `/health` را در انتهای دامنه باز کنید. پاسخ سالم باید شامل موارد زیر باشد:
+
+```json
+{"service":"pishi-ai","ok":true,"database":"connected","configuration":"ok"}
+```
+
+اگر `configuration` خطا نشان داد، متغیرهای Railway ناقص هستند. اگر `database` برابر `waiting` بود، اتصال `DATABASE_URL` یا سرویس PostgreSQL را بررسی کنید. نسخه 1.0.1 حتی هنگام آماده نبودن دیتابیس وب‌سرور را بالا می‌آورد تا Healthcheck بی‌دلیل شکست نخورد و خطای واقعی قابل مشاهده باشد.
 
 ### آیا Disk/Volume لازم است؟
 

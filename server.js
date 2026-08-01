@@ -7,12 +7,15 @@ import { fileURLToPath } from 'node:url';
 const { Pool } = pg;
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL || '';
 const ENC_SECRET = process.env.APP_ENCRYPTION_KEY || '';
-if (!DATABASE_URL) throw new Error('DATABASE_URL is required');
-if (ENC_SECRET.length < 32) throw new Error('APP_ENCRYPTION_KEY must be at least 32 characters');
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false });
-const encKey = crypto.createHash('sha256').update(ENC_SECRET).digest();
+const configErrors = [];
+if (!DATABASE_URL) configErrors.push('DATABASE_URL تنظیم نشده است');
+if (ENC_SECRET.length < 32) configErrors.push('APP_ENCRYPTION_KEY باید حداقل ۳۲ کاراکتر باشد');
+const pool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL, ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false }) : null;
+const encKey = crypto.createHash('sha256').update(ENC_SECRET || 'temporary-unconfigured-key').digest();
+let dbReady = false;
+let lastDbError = '';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.set('trust proxy', 1);
@@ -25,6 +28,8 @@ app.use('/api', (req, res, next) => {
   if (now > row.reset) { row.n = 0; row.reset = now + 60000; }
   row.n++; attempts.set(key, row);
   if (row.n > 120) return res.status(429).json({ error: 'درخواست بیش از حد؛ کمی صبر کنید.' });
+  if (configErrors.length) return res.status(503).json({ error: 'تنظیمات Railway کامل نیست: ' + configErrors.join('، ') });
+  if (!dbReady) return res.status(503).json({ error: 'دیتابیس هنوز آماده نیست. چند ثانیه دیگر تلاش کنید.', detail: lastDbError });
   next();
 });
 
@@ -94,7 +99,13 @@ async function migrate() {
   }
 }
 
-app.get('/health', async (_req,res)=>{ try{await pool.query('SELECT 1');res.json({ok:true});}catch{res.status(503).json({ok:false});} });
+app.get('/health', (_req,res)=>res.status(200).json({
+  service:'pishi-ai',
+  ok:dbReady && configErrors.length===0,
+  database:dbReady?'connected':'waiting',
+  configuration:configErrors.length?configErrors:'ok',
+  lastDatabaseError:lastDbError||undefined
+}));
 app.post('/api/auth/register', async(req,res,next)=>{try{
   const email=cleanEmail(req.body.email), name=safeText(req.body.name,80), password=String(req.body.password||'');
   if(!/^\S+@\S+\.\S+$/.test(email)||name.length<2||password.length<8) return res.status(400).json({error:'نام، ایمیل معتبر و رمز حداقل ۸ کاراکتری لازم است.'});
@@ -154,5 +165,26 @@ app.patch('/api/admin/licenses/:id',auth,admin,async(req,res)=>{await pool.query
 app.use((err,req,res,next)=>{console.error(err);if(res.headersSent)return next(err);res.status(500).json({error:'خطای داخلی سرور رخ داد.'});});
 app.use((_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 
-await migrate();
-app.listen(PORT,'0.0.0.0',()=>console.log(`Pishi AI listening on ${PORT}`));
+async function initializeDatabase(attempt=1) {
+  if (configErrors.length || !pool) {
+    console.error('Configuration error:', configErrors.join(' | '));
+    return;
+  }
+  try {
+    await migrate();
+    dbReady = true;
+    lastDbError = '';
+    console.log('Database connected and migrations completed');
+  } catch (error) {
+    dbReady = false;
+    lastDbError = String(error?.message || error).slice(0,300);
+    console.error(`Database initialization failed (attempt ${attempt}):`, error);
+    const delay = Math.min(30000, 2000 * attempt);
+    setTimeout(() => initializeDatabase(attempt + 1), delay);
+  }
+}
+
+app.listen(PORT,'0.0.0.0',()=>{
+  console.log(`Pishi AI listening on ${PORT}`);
+  initializeDatabase();
+});
