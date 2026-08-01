@@ -59,15 +59,15 @@ npm start
 
 سپس `http://localhost:3000` را باز کنید.
 
-## Base URL سازگار
+## آدرس کامل API
 
-Base URL باید به ریشه API ختم شود، مثلاً:
+آدرس باید endpoint کامل درخواست چت باشد، مثلاً:
 
-- `https://api.openai.com/v1`
-- `https://openrouter.ai/api/v1`
-- آدرس سرویس اختصاصی سازگار با OpenAI
+- `https://api.openai.com/v1/chat/completions`
+- `https://openrouter.ai/api/v1/chat/completions`
+- آدرس کامل endpoint سرویس اختصاصی سازگار با OpenAI
 
-سرور خودش مسیر `/chat/completions` را اضافه می‌کند.
+برنامه آدرس را دقیقاً همان‌طور که ادمین وارد می‌کند استفاده می‌کند و هیچ مسیر یا عبارتی به انتهای آن اضافه نمی‌کند.
 
 ## نکات تولید
 

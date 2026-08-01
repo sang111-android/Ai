@@ -1,22 +1,62 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f7f5"><title>Pishi AI</title><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#fbfbfd"><title>Pishi AI</title><link rel="stylesheet" href="style.css"></head><body>
 <div id="toast" class="toast" role="status"></div>
 <section id="authView" class="auth-wrap">
-  <div class="brand-panel"><div class="brand-mark">P</div><div><b>Pishi AI</b><span>فضای امن گفت‌وگو با هوش مصنوعی</span></div><div class="brand-copy"><h1>چند مدل،<br>یک تجربه ساده.</h1><p>چت‌هایت را نگه دار، مدل مناسب را انتخاب کن و هر زمان از همان‌جا ادامه بده.</p></div><div class="trust"><span>● تاریخچه دائمی</span><span>● دسترسی پلنی</span><span>● مدیریت متمرکز</span></div></div>
-  <div class="auth-card"><div class="mobile-logo"><div class="brand-mark">P</div><b>Pishi AI</b></div><div class="auth-tabs"><button class="active" data-auth-tab="login">ورود</button><button data-auth-tab="register">ساخت حساب</button></div>
-    <form id="loginForm"><h2>خوش آمدی</h2><p>برای ادامه وارد حساب خودت شو.</p><label>ایمیل<input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label><label>رمز عبور<input name="password" type="password" autocomplete="current-password" required placeholder="حداقل ۸ کاراکتر"></label><button class="primary" type="submit">ورود به داشبورد</button></form>
-    <form id="registerForm" hidden><h2>حساب جدید</h2><p>کمتر از یک دقیقه تا اولین گفت‌وگو.</p><label>نام<input name="name" required minlength="2" placeholder="نام شما"></label><label>ایمیل<input name="email" type="email" required placeholder="you@example.com"></label><label>رمز عبور<input name="password" type="password" required minlength="8" placeholder="حداقل ۸ کاراکتر"></label><button class="primary" type="submit">ثبت‌نام رایگان</button></form>
+  <div class="auth-bg" aria-hidden="true"><span class="glow g1"></span><span class="glow g2"></span><span class="glow g3"></span></div>
+  <div class="auth-card">
+    <div class="auth-logo"><span class="logo-orb">P</span></div>
+    <h1>Pishi AI</h1>
+    <p class="auth-sub">دستیار هوشمند تو، همیشه در دسترس</p>
+    <div class="auth-tabs" role="tablist"><button class="active" data-auth-tab="login">ورود</button><button data-auth-tab="register">ساخت حساب</button></div>
+    <form id="loginForm"><label>ایمیل<input name="email" type="email" autocomplete="email" required placeholder="you@example.com" dir="ltr"></label><label>رمز عبور<input name="password" type="password" autocomplete="current-password" required placeholder="••••••••" dir="ltr"></label><button class="primary" type="submit">ورود به داشبورد</button></form>
+    <form id="registerForm" hidden><label>نام<input name="name" required minlength="2" placeholder="نام شما"></label><label>ایمیل<input name="email" type="email" required placeholder="you@example.com" dir="ltr"></label><label>رمز عبور<input name="password" type="password" required minlength="8" placeholder="حداقل ۸ کاراکتر" dir="ltr"></label><button class="primary" type="submit">شروع رایگان</button></form>
+    <p class="auth-note">تاریخچه‌ی گفت‌وگوها برای همیشه نزد تو می‌ماند</p>
   </div>
 </section>
 <section id="appView" class="app-shell" hidden>
-  <aside class="sidebar"><div class="side-head"><div class="brand-mark small">P</div><b>Pishi AI</b><button id="closeSide" class="icon-btn mobile-only">×</button></div><button id="newChat" class="new-chat">＋ گفت‌وگوی جدید</button><div class="side-label">گفت‌وگوهای اخیر</div><div id="chatList" class="chat-list"></div><div class="side-footer"><button id="planBtn" class="plan-card"><span class="spark">✦</span><span><b id="planName">پلن رایگان</b><small>ارتقا با کد لایسنس</small></span></button><button id="adminBtn" class="side-link" hidden>⚙ پنل مدیریت</button><button id="logoutBtn" class="side-link">↪ خروج</button></div></aside>
-  <main class="main"><header><button id="openSide" class="icon-btn mobile-only">☰</button><div><b id="chatTitle">گفت‌وگوی جدید</b><small id="modelTitle">یک مدل را انتخاب کن</small></div><button id="modelPickerBtn" class="model-button">مدل‌ها <span>⌄</span></button></header>
-    <div id="emptyState" class="empty-state"><div class="orb">✦</div><h2>چه کمکی از دستم برمیاد؟</h2><p>از بین مدل‌های موجود انتخاب کن و گفت‌وگو را شروع کن.</p><div id="quickPrompts" class="quick-grid"><button>برای هفته‌ام برنامه بنویس</button><button>این ایده را بهتر کن</button><button>یک ایمیل رسمی بنویس</button></div></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head"><span class="logo-orb small">P</span><b>Pishi AI</b><button id="closeSide" class="icon-btn mobile-only" aria-label="بستن">×</button></div>
+    <button id="newChat" class="new-chat"><span class="plus">＋</span> گفت‌وگوی جدید</button>
+    <div class="side-label">گفت‌وگوها</div>
+    <div id="chatList" class="chat-list"></div>
+    <div class="side-footer">
+      <button id="planBtn" class="plan-card"><span class="plan-orb">✦</span><span class="plan-text"><b id="planName">پلن رایگان</b><small>ارتقا با کد لایسنس</small></span><span class="plan-arrow">‹</span></button>
+      <button id="adminBtn" class="side-link" hidden><span class="side-ico">⚙</span> پنل مدیریت</button>
+      <button id="logoutBtn" class="side-link"><span class="side-ico">↩</span> خروج از حساب</button>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <button id="openSide" class="icon-btn mobile-only" aria-label="منو">☰</button>
+      <div class="topbar-title"><b id="chatTitle">گفت‌وگوی جدید</b><small id="modelTitle">یک مدل را انتخاب کن</small></div>
+      <button id="modelPickerBtn" class="model-button"><span class="model-dot"></span><span id="modelBtnText">مدل‌ها</span><span class="chev">⌄</span></button>
+    </header>
+    <div id="emptyState" class="empty-state">
+      <div class="hero-orb">✦</div>
+      <h2>چه کمکی از دستم برمیاد؟</h2>
+      <p>یک مدل انتخاب کن و گفت‌وگو را شروع کن؛ همه‌ی چت‌ها ذخیره می‌شوند.</p>
+      <div id="quickPrompts" class="quick-grid"><button>برای هفته‌ام برنامه بنویس</button><button>این ایده را بهتر کن</button><button>یک ایمیل رسمی بنویس</button></div>
+    </div>
     <div id="messages" class="messages"></div>
-    <div class="composer-wrap"><form id="messageForm" class="composer"><textarea id="messageInput" rows="1" placeholder="پیامت را بنویس…" maxlength="12000"></textarea><button id="sendBtn" type="submit" aria-label="ارسال">↑</button></form><small>پاسخ هوش مصنوعی ممکن است دقیق نباشد؛ اطلاعات مهم را بررسی کنید.</small></div>
+    <div class="composer-wrap">
+      <form id="messageForm" class="composer"><textarea id="messageInput" rows="1" placeholder="پیامت را بنویس…" maxlength="12000"></textarea><button id="sendBtn" type="submit" aria-label="ارسال"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form>
+      <small>پاسخ هوش مصنوعی ممکن است دقیق نباشد؛ اطلاعات مهم را بررسی کنید.</small>
+    </div>
   </main>
 </section>
 <div id="backdrop" class="backdrop" hidden></div>
-<div id="modelModal" class="modal" hidden><div class="modal-head"><div><h3>انتخاب مدل</h3><p>مدل مناسب برای گفت‌وگو را انتخاب کن.</p></div><button class="icon-btn close-modal">×</button></div><div id="modelList" class="model-list"></div></div>
-<div id="planModal" class="modal compact" hidden><div class="modal-head"><div><h3>فعال‌سازی پلن</h3><p>کد لایسنس دریافتی را وارد کن.</p></div><button class="icon-btn close-modal">×</button></div><form id="redeemForm"><label>کد لایسنس<input name="code" required placeholder="XXXX-XXXX-XXXX" dir="ltr"></label><button class="primary">فعال‌سازی</button></form></div>
-<div id="adminModal" class="admin-drawer" hidden><div class="drawer-head"><div><h2>مدیریت سیستم</h2><p>مدل‌ها، اتصال و دسترسی کاربران</p></div><button class="icon-btn close-modal">×</button></div><div class="admin-tabs"><button class="active" data-admin-tab="overview">نمای کلی</button><button data-admin-tab="connection">اتصال AI</button><button data-admin-tab="models">مدل‌ها</button><button data-admin-tab="licenses">لایسنس‌ها</button><button data-admin-tab="users">کاربران</button></div><div id="adminContent" class="admin-content"></div></div>
+<div id="modelModal" class="modal" hidden>
+  <div class="modal-head"><div><h3>انتخاب مدل</h3><p>مدل مناسب برای این گفت‌وگو را انتخاب کن.</p></div><button class="icon-btn close-modal" aria-label="بستن">×</button></div>
+  <div id="modelList" class="model-list"></div>
+  <p class="modal-foot">مدل‌های قفل با ارتقای پلن باز می‌شوند.</p>
+</div>
+<div id="planModal" class="modal compact" hidden>
+  <div class="plan-hero"><span class="plan-orb big">✦</span></div>
+  <div class="modal-head center"><div><h3>فعال‌سازی پلن</h3><p>کد لایسنس دریافتی را وارد کن تا مدل‌های حرفه‌ای باز شوند.</p></div><button class="icon-btn close-modal" aria-label="بستن">×</button></div>
+  <form id="redeemForm"><label>کد لایسنس<input name="code" required placeholder="XXXX-XXXX-XXXX" dir="ltr" autocomplete="off"></label><button class="primary">فعال‌سازی</button></form>
+</div>
+<div id="adminModal" class="admin-drawer" hidden>
+  <div class="drawer-head"><div><h2>مدیریت سیستم</h2><p>مدل‌ها، اتصال و دسترسی کاربران</p></div><button class="icon-btn close-modal" aria-label="بستن">×</button></div>
+  <div class="admin-tabs"><button class="active" data-admin-tab="overview">نمای کلی</button><button data-admin-tab="connection">اتصال AI</button><button data-admin-tab="models">مدل‌ها</button><button data-admin-tab="licenses">لایسنس‌ها</button><button data-admin-tab="users">کاربران</button></div>
+  <div id="adminContent" class="admin-content"></div>
+</div>
 <script src="app.js" defer></script></body></html>
