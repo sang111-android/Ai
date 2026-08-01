@@ -150,7 +150,7 @@ app.post('/api/auth/login', async(req,res,next)=>{try{
 }catch(e){next(e)}});
 app.post('/api/auth/logout',auth,async(req,res)=>{const t=cookies(req).sid;await pool.query('DELETE FROM sessions WHERE token_hash=$1',[crypto.createHash('sha256').update(t).digest('hex')]);res.clearCookie('sid');res.json({ok:true});});
 app.get('/api/me',auth,(req,res)=>res.json({user:req.user}));
-app.get('/api/ui-config',auth,async(_req,res)=>res.json({config:(await pool.query('SELECT header_title,header_subtitle FROM ai_settings WHERE id=1')).rows[0]}));
+app.get('/api/ui-config',auth,async(_req,res)=>res.json({config:(await pool.query('SELECT header_title,header_subtitle,web_search_enabled FROM ai_settings WHERE id=1')).rows[0]}));
 app.patch('/api/me',auth,async(req,res)=>{const name=safeText(req.body.name,80);if(name.length<2)return res.status(400).json({error:'نام باید حداقل ۲ کاراکتر باشد.'});await pool.query('UPDATE users SET name=$1 WHERE id=$2',[name,req.user.id]);res.json({user:{...req.user,name}});});
 app.get('/api/plans',auth,async(_req,res)=>res.json({plans:(await pool.query('SELECT id,name,slug,description FROM plans ORDER BY id')).rows}));
 app.get('/api/models',auth,async(req,res)=>{const q=await pool.query(`SELECT m.id,m.name,m.model_key,m.description,m.image_data,m.enabled,p.name min_plan,
