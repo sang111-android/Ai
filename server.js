@@ -144,10 +144,33 @@ app.post('/api/chats/:id/messages',auth,async(req,res,next)=>{try{
   const set=(await pool.query('SELECT * FROM ai_settings WHERE id=1')).rows[0];if(!set.base_url||!set.api_key_encrypted)return res.status(503).json({error:'اتصال مدل هنوز توسط ادمین تنظیم نشده است.'});
   await pool.query('INSERT INTO messages(chat_id,role,content) VALUES($1,\'user\',$2)',[c.id,content]);
   const history=(await pool.query('SELECT role,content FROM messages WHERE chat_id=$1 ORDER BY id DESC LIMIT 30',[c.id])).rows.reverse();
-  const url=set.base_url;
-  const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${decrypt(set.api_key_encrypted)}`},body:JSON.stringify({model:c.model_key,messages:history,temperature:0.7})});
-  if(!response.ok){const detail=(await response.text()).slice(0,400);return res.status(502).json({error:'خطا در سرویس مدل هوش مصنوعی.',detail});}
-  const data=await response.json();const answer=data.choices?.[0]?.message?.content;if(!answer)return res.status(502).json({error:'پاسخ معتبری از مدل دریافت نشد.'});
+  const url=set.base_url.trim();
+  let safeEndpoint='';
+  try { const endpoint=new URL(url); safeEndpoint=endpoint.origin+endpoint.pathname; } catch { return res.status(503).json({error:'آدرس endpoint هوش مصنوعی معتبر نیست.'}); }
+  let response;
+  try {
+    response=await fetch(url,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(60000),headers:{
+      'content-type':'application/json',
+      'accept':'application/json',
+      'authorization':`Bearer ${decrypt(set.api_key_encrypted)}`,
+      'user-agent':'Pishi-AI/1.1.1'
+    },body:JSON.stringify({model:c.model_key,messages:history,temperature:0.7})});
+  } catch (upstreamError) {
+    const reason=String(upstreamError?.cause?.message||upstreamError?.message||'خطای شبکه').slice(0,280);
+    console.error('AI upstream connection error', {endpoint:safeEndpoint,reason});
+    return res.status(502).json({error:'اتصال به سرویس هوش مصنوعی برقرار نشد.',detail:`خطای اتصال به ${safeEndpoint}: ${reason}`});
+  }
+  const rawResponse=await response.text();
+  if(!response.ok){
+    let detail=rawResponse.trim();
+    try { const parsed=JSON.parse(detail); detail=parsed?.error?.message||parsed?.error||parsed?.message||detail; } catch {}
+    detail=String(detail||`سرویس مقصد با وضعیت HTTP ${response.status} پاسخ خالی داد.`).slice(0,700);
+    console.error('AI upstream error', {endpoint:safeEndpoint,status:response.status,statusText:response.statusText,detail});
+    return res.status(502).json({error:'خطا در سرویس مدل هوش مصنوعی.',detail:`Endpoint: ${safeEndpoint} | HTTP ${response.status} | ${detail}`});
+  }
+  let data;
+  try { data=JSON.parse(rawResponse); } catch { return res.status(502).json({error:'پاسخ سرویس هوش مصنوعی قابل خواندن نیست.',detail:`Endpoint: ${safeEndpoint} پاسخ JSON معتبر برنگرداند.`}); }
+  const answer=data.choices?.[0]?.message?.content;if(!answer)return res.status(502).json({error:'پاسخ معتبری از مدل دریافت نشد.',detail:`Endpoint: ${safeEndpoint} | مدل «${c.model_key}» خروجی استاندارد choices[0].message.content برنگرداند.`});
   await pool.query('INSERT INTO messages(chat_id,role,content) VALUES($1,\'assistant\',$2)',[c.id,answer]);
   const count=(await pool.query('SELECT count(*)::int n FROM messages WHERE chat_id=$1',[c.id])).rows[0].n;if(count===2)await pool.query('UPDATE chats SET title=$1,updated_at=now() WHERE id=$2',[content.slice(0,55),c.id]);else await pool.query('UPDATE chats SET updated_at=now() WHERE id=$1',[c.id]);
   res.json({message:{role:'assistant',content:answer}});
