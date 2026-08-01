@@ -1,0 +1,66 @@
+# Pishi AI Dashboard
+
+داشبورد فارسی چت چندمدلی با ثبت‌نام، تاریخچه، پلن، کد لایسنس و پنل مدیریت. Backend و Frontend در یک سرویس Node.js اجرا می‌شوند و داده‌ها در PostgreSQL نگهداری می‌شوند.
+
+## امکانات
+
+- ثبت‌نام، ورود و نشست امن ۳۰ روزه
+- چت با APIهای سازگار با OpenAI (`/chat/completions`)
+- مدل‌های متعدد و قفل‌گذاری براساس پلن
+- نگهداری تاریخچه و عنوان خودکار گفت‌وگوها
+- فعال‌سازی پلن با کد لایسنس، محدودیت استفاده و انقضا
+- پنل ادمین برای Base URL، API Key، مدل‌ها، لایسنس‌ها و کاربران
+- رمزنگاری API Key با AES-256-GCM
+- رابط فارسی RTL و واکنش‌گرا
+
+## استقرار روی Railway
+
+1. این پوشه را در یک مخزن GitHub قرار دهید و در Railway گزینه **Deploy from GitHub repo** را بزنید.
+2. داخل همان Project روی **+ New → Database → PostgreSQL** بزنید.
+3. در سرویس اپ، بخش **Variables** این موارد را اضافه کنید:
+
+```env
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+APP_ENCRYPTION_KEY=یک-رشته-تصادفی-طولانی-حداقل-۳۲-کاراکتر
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=یک-رمز-قوی-حداقل-۸-کاراکتر
+NODE_ENV=production
+```
+
+4. در Settings سرویس، از بخش Networking یک Public Domain بسازید.
+5. پس از اولین اجرا با `ADMIN_EMAIL` و `ADMIN_PASSWORD` وارد شوید؛ در **پنل مدیریت → اتصال AI**، Base URL و API Key را وارد کنید.
+6. در پنل مدیریت، شناسه دقیق مدل‌های سرویس‌دهنده را بسازید و حداقل پلن هر مدل را انتخاب کنید.
+
+### آیا Disk/Volume لازم است؟
+
+خیر. برای این پروژه **PostgreSQL لازم است ولی Volume جدا برای سرویس اپ لازم نیست**. تاریخچه، کاربران، نشست‌ها و لایسنس‌ها همگی در PostgreSQL ذخیره می‌شوند. خود سرویس PostgreSQL در Railway فضای پایدار خود را دارد.
+
+## اجرای محلی
+
+Node.js 20+ و PostgreSQL لازم است:
+
+```bash
+cp .env.example .env
+npm install
+set -a && source .env && set +a
+npm start
+```
+
+سپس `http://localhost:3000` را باز کنید.
+
+## Base URL سازگار
+
+Base URL باید به ریشه API ختم شود، مثلاً:
+
+- `https://api.openai.com/v1`
+- `https://openrouter.ai/api/v1`
+- آدرس سرویس اختصاصی سازگار با OpenAI
+
+سرور خودش مسیر `/chat/completions` را اضافه می‌کند.
+
+## نکات تولید
+
+- مقدار `APP_ENCRYPTION_KEY` را بعد از ذخیره API Key تغییر ندهید؛ در غیر این صورت کلید قبلی قابل رمزگشایی نیست.
+- قبل از استفاده واقعی، برای PostgreSQL بکاپ دوره‌ای فعال کنید.
+- برای مصرف بالا بهتر است محدودیت پیام/توکن، ثبت هزینه و صف درخواست اضافه شود.
+- ادمین اولیه فقط وقتی ساخته می‌شود که کاربری با `ADMIN_EMAIL` وجود نداشته باشد.
