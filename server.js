@@ -55,6 +55,21 @@ function cookies(req) { return Object.fromEntries((req.headers.cookie || '').spl
 function cleanEmail(v) { return String(v || '').trim().toLowerCase(); }
 function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
+function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
+function modelImageData(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const match=String(value).match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) throw new Error('تصویر مدل باید PNG یا JPEG باشد.');
+  const raw=Buffer.from(match[2],'base64');
+  if (raw.length > 1024*1024) throw new Error('حجم تصویر مدل نباید بیشتر از ۱ مگابایت باشد.');
+  let width=0,height=0;
+  if (match[1] === 'png' && raw.length >= 24 && raw.subarray(1,4).toString() === 'PNG') { width=raw.readUInt32BE(16); height=raw.readUInt32BE(20); }
+  if (match[1] === 'jpeg' && raw[0] === 0xff && raw[1] === 0xd8) {
+    let i=2; while (i < raw.length) { if(raw[i] !== 0xff) {i++; continue;} const marker=raw[i+1], len=raw.readUInt16BE(i+2); if([0xc0,0xc1,0xc2].includes(marker)) { height=raw.readUInt16BE(i+5); width=raw.readUInt16BE(i+7); break; } i += 2 + len; }
+  }
+  if (width !== 512 || height !== 512) throw new Error('ابعاد تصویر مدل باید دقیقاً ۵۱۲×۵۱۲ پیکسل باشد.');
+  return value;
+}
 
 async function auth(req, res, next) {
   try {
@@ -85,8 +100,13 @@ async function migrate() {
   CREATE TABLE IF NOT EXISTS license_redemptions(id BIGSERIAL PRIMARY KEY,license_id BIGINT REFERENCES licenses(id),user_id BIGINT REFERENCES users(id),redeemed_at TIMESTAMPTZ DEFAULT now(),UNIQUE(license_id,user_id));
   CREATE TABLE IF NOT EXISTS chats(id BIGSERIAL PRIMARY KEY,user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,model_id BIGINT REFERENCES models(id),title TEXT NOT NULL DEFAULT 'گفت‌وگوی جدید',created_at TIMESTAMPTZ DEFAULT now(),updated_at TIMESTAMPTZ DEFAULT now());
   CREATE TABLE IF NOT EXISTS messages(id BIGSERIAL PRIMARY KEY,chat_id BIGINT REFERENCES chats(id) ON DELETE CASCADE,role TEXT NOT NULL,content TEXT NOT NULL,created_at TIMESTAMPTZ DEFAULT now());
+  ALTER TABLE models ADD COLUMN IF NOT EXISTS image_data TEXT;
   INSERT INTO ai_settings(id) VALUES(1) ON CONFLICT DO NOTHING;
-  INSERT INTO plans(name,slug,description) VALUES ('رایگان','free','دسترسی به مدل‌های پایه'),('حرفه‌ای','pro','دسترسی به مدل‌های حرفه‌ای') ON CONFLICT(slug) DO NOTHING;
+  INSERT INTO plans(name,slug,description) VALUES
+    ('رایگان','free','دسترسی به مدل‌های پایه'),
+    ('پرو','pro','دسترسی به مدل‌های پیشرفته'),
+    ('بیزنس','business','دسترسی کامل برای استفاده حرفه‌ای')
+  ON CONFLICT(slug) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description;
   `);
   const free=(await pool.query("SELECT id FROM plans WHERE slug='free'")).rows[0].id;
   await pool.query(`INSERT INTO models(name,model_key,description,min_plan_id) VALUES
@@ -108,7 +128,7 @@ app.get('/health', (_req,res)=>res.status(200).json({
 }));
 app.post('/api/auth/register', async(req,res,next)=>{try{
   const email=cleanEmail(req.body.email), name=safeText(req.body.name,80), password=String(req.body.password||'');
-  if(!/^\S+@\S+\.\S+$/.test(email)||name.length<2||password.length<8) return res.status(400).json({error:'نام، ایمیل معتبر و رمز حداقل ۸ کاراکتری لازم است.'});
+  if(!hasAllowedEmailDomain(email)||name.length<2||password.length<8) return res.status(400).json({error:'ثبت‌نام فقط با Gmail، Outlook یا دامنه in2.kdns.fr ممکن است؛ رمز هم باید حداقل ۸ کاراکتر باشد.'});
   const free=(await pool.query("SELECT id FROM plans WHERE slug='free'")).rows[0].id;
   const q=await pool.query('INSERT INTO users(email,name,password_hash,plan_id) VALUES($1,$2,$3,$4) RETURNING id',[email,name,await hashPassword(password),free]);
   await createSession(res,q.rows[0].id); res.json({ok:true});
@@ -120,8 +140,9 @@ app.post('/api/auth/login', async(req,res,next)=>{try{
 }catch(e){next(e)}});
 app.post('/api/auth/logout',auth,async(req,res)=>{const t=cookies(req).sid;await pool.query('DELETE FROM sessions WHERE token_hash=$1',[crypto.createHash('sha256').update(t).digest('hex')]);res.clearCookie('sid');res.json({ok:true});});
 app.get('/api/me',auth,(req,res)=>res.json({user:req.user}));
+app.patch('/api/me',auth,async(req,res)=>{const name=safeText(req.body.name,80);if(name.length<2)return res.status(400).json({error:'نام باید حداقل ۲ کاراکتر باشد.'});await pool.query('UPDATE users SET name=$1 WHERE id=$2',[name,req.user.id]);res.json({user:{...req.user,name}});});
 app.get('/api/plans',auth,async(_req,res)=>res.json({plans:(await pool.query('SELECT id,name,slug,description FROM plans ORDER BY id')).rows}));
-app.get('/api/models',auth,async(req,res)=>{const q=await pool.query(`SELECT m.id,m.name,m.model_key,m.description,m.enabled,p.name min_plan,
+app.get('/api/models',auth,async(req,res)=>{const q=await pool.query(`SELECT m.id,m.name,m.model_key,m.description,m.image_data,m.enabled,p.name min_plan,
   (m.min_plan_id IS NULL OR m.min_plan_id=req.plan_id OR req.role='admin' OR EXISTS(SELECT 1 FROM plans up,plans mp WHERE up.id=req.plan_id AND mp.id=m.min_plan_id AND up.id>=mp.id)) unlocked
   FROM models m LEFT JOIN plans p ON p.id=m.min_plan_id CROSS JOIN (SELECT $1::bigint plan_id,$2::text role) req WHERE m.enabled=true ORDER BY m.id`,[req.user.plan_id,req.user.role]);res.json({models:q.rows});});
 app.post('/api/licenses/redeem',auth,async(req,res,next)=>{const client=await pool.connect();try{await client.query('BEGIN');
@@ -144,44 +165,33 @@ app.post('/api/chats/:id/messages',auth,async(req,res,next)=>{try{
   const set=(await pool.query('SELECT * FROM ai_settings WHERE id=1')).rows[0];if(!set.base_url||!set.api_key_encrypted)return res.status(503).json({error:'اتصال مدل هنوز توسط ادمین تنظیم نشده است.'});
   await pool.query('INSERT INTO messages(chat_id,role,content) VALUES($1,\'user\',$2)',[c.id,content]);
   const history=(await pool.query('SELECT role,content FROM messages WHERE chat_id=$1 ORDER BY id DESC LIMIT 30',[c.id])).rows.reverse();
-  const url=set.base_url.trim();
-  let safeEndpoint='';
+  const url=set.base_url.trim(); let safeEndpoint='';
   try { const endpoint=new URL(url); safeEndpoint=endpoint.origin+endpoint.pathname; } catch { return res.status(503).json({error:'آدرس endpoint هوش مصنوعی معتبر نیست.'}); }
   let response;
+  try { response=await fetch(url,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(90000),headers:{'content-type':'application/json','accept':'text/event-stream, application/json','authorization':`Bearer ${decrypt(set.api_key_encrypted)}`,'user-agent':'Pishi-AI/1.2.0'},body:JSON.stringify({model:c.model_key,messages:history,temperature:0.7,stream:true})}); }
+  catch (upstreamError) { const reason=String(upstreamError?.cause?.message||upstreamError?.message||'خطای شبکه').slice(0,280);console.error('AI upstream connection error',{endpoint:safeEndpoint,reason});return res.status(502).json({error:'اتصال به سرویس هوش مصنوعی برقرار نشد.',detail:`خطای اتصال به ${safeEndpoint}: ${reason}`}); }
+  if(!response.ok){const raw=(await response.text()).trim();let detail=raw;try{const parsed=JSON.parse(raw);detail=parsed?.error?.message||parsed?.error||parsed?.message||raw}catch{}detail=String(detail||`سرویس مقصد با وضعیت HTTP ${response.status} پاسخ خالی داد.`).slice(0,700);console.error('AI upstream error',{endpoint:safeEndpoint,status:response.status,detail});return res.status(502).json({error:'خطا در سرویس مدل هوش مصنوعی.',detail:`Endpoint: ${safeEndpoint} | HTTP ${response.status} | ${detail}`});}
+  res.status(200);res.setHeader('content-type','text/event-stream; charset=utf-8');res.setHeader('cache-control','no-cache, no-transform');res.setHeader('connection','keep-alive');res.flushHeaders();
+  const emit=(event,data)=>res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);let answer='';
   try {
-    response=await fetch(url,{method:'POST',redirect:'manual',signal:AbortSignal.timeout(60000),headers:{
-      'content-type':'application/json',
-      'accept':'application/json',
-      'authorization':`Bearer ${decrypt(set.api_key_encrypted)}`,
-      'user-agent':'Pishi-AI/1.1.1'
-    },body:JSON.stringify({model:c.model_key,messages:history,temperature:0.7})});
-  } catch (upstreamError) {
-    const reason=String(upstreamError?.cause?.message||upstreamError?.message||'خطای شبکه').slice(0,280);
-    console.error('AI upstream connection error', {endpoint:safeEndpoint,reason});
-    return res.status(502).json({error:'اتصال به سرویس هوش مصنوعی برقرار نشد.',detail:`خطای اتصال به ${safeEndpoint}: ${reason}`});
-  }
-  const rawResponse=await response.text();
-  if(!response.ok){
-    let detail=rawResponse.trim();
-    try { const parsed=JSON.parse(detail); detail=parsed?.error?.message||parsed?.error||parsed?.message||detail; } catch {}
-    detail=String(detail||`سرویس مقصد با وضعیت HTTP ${response.status} پاسخ خالی داد.`).slice(0,700);
-    console.error('AI upstream error', {endpoint:safeEndpoint,status:response.status,statusText:response.statusText,detail});
-    return res.status(502).json({error:'خطا در سرویس مدل هوش مصنوعی.',detail:`Endpoint: ${safeEndpoint} | HTTP ${response.status} | ${detail}`});
-  }
-  let data;
-  try { data=JSON.parse(rawResponse); } catch { return res.status(502).json({error:'پاسخ سرویس هوش مصنوعی قابل خواندن نیست.',detail:`Endpoint: ${safeEndpoint} پاسخ JSON معتبر برنگرداند.`}); }
-  const answer=data.choices?.[0]?.message?.content;if(!answer)return res.status(502).json({error:'پاسخ معتبری از مدل دریافت نشد.',detail:`Endpoint: ${safeEndpoint} | مدل «${c.model_key}» خروجی استاندارد choices[0].message.content برنگرداند.`});
-  await pool.query('INSERT INTO messages(chat_id,role,content) VALUES($1,\'assistant\',$2)',[c.id,answer]);
-  const count=(await pool.query('SELECT count(*)::int n FROM messages WHERE chat_id=$1',[c.id])).rows[0].n;if(count===2)await pool.query('UPDATE chats SET title=$1,updated_at=now() WHERE id=$2',[content.slice(0,55),c.id]);else await pool.query('UPDATE chats SET updated_at=now() WHERE id=$1',[c.id]);
-  res.json({message:{role:'assistant',content:answer}});
+    const contentType=response.headers.get('content-type')||'';
+    if(contentType.includes('text/event-stream') && response.body){
+      const reader=response.body.getReader(), decoder=new TextDecoder();let buffer='';
+      while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const packets=buffer.split(/\n\n/);buffer=packets.pop()||'';for(const packet of packets){const dataLine=packet.split(/\r?\n/).find(line=>line.startsWith('data:'));if(!dataLine)continue;const data=dataLine.slice(5).trim();if(data==='[DONE]')continue;try{const delta=JSON.parse(data)?.choices?.[0]?.delta?.content||'';if(delta){answer+=delta;emit('delta',{content:delta});}}catch{}}}
+    } else { const raw=await response.text();const data=JSON.parse(raw);answer=data.choices?.[0]?.message?.content||'';if(answer)emit('delta',{content:answer}); }
+    if(!answer)throw new Error(`مدل «${c.model_key}» خروجی استاندارد برنگرداند.`);
+    await pool.query('INSERT INTO messages(chat_id,role,content) VALUES($1,\'assistant\',$2)',[c.id,answer]);
+    const count=(await pool.query('SELECT count(*)::int n FROM messages WHERE chat_id=$1',[c.id])).rows[0].n;if(count===2)await pool.query('UPDATE chats SET title=$1,updated_at=now() WHERE id=$2',[content.slice(0,55),c.id]);else await pool.query('UPDATE chats SET updated_at=now() WHERE id=$1',[c.id]);
+    emit('done',{content:answer});res.end();
+  } catch(streamError) { console.error('AI stream error',{endpoint:safeEndpoint,error:String(streamError?.message||streamError)});emit('error',{error:'پاسخ مدل کامل نشد.',detail:String(streamError?.message||'خطای نامشخص')});res.end(); }
 }catch(e){next(e)}});
 
 app.get('/api/admin/overview',auth,admin,async(_req,res)=>{const [u,c,m,l]=await Promise.all([pool.query('SELECT count(*)::int n FROM users'),pool.query('SELECT count(*)::int n FROM chats'),pool.query('SELECT count(*)::int n FROM messages'),pool.query('SELECT count(*)::int n FROM licenses WHERE active=true')]);res.json({users:u.rows[0].n,chats:c.rows[0].n,messages:m.rows[0].n,licenses:l.rows[0].n});});
 app.get('/api/admin/config',auth,admin,async(_req,res)=>{const [s,models,plans,licenses,users]=await Promise.all([pool.query('SELECT base_url,(api_key_encrypted<>\'\') has_key,updated_at FROM ai_settings WHERE id=1'),pool.query('SELECT m.*,p.name min_plan FROM models m LEFT JOIN plans p ON p.id=m.min_plan_id ORDER BY m.id'),pool.query('SELECT * FROM plans ORDER BY id'),pool.query('SELECT l.*,p.name plan_name FROM licenses l LEFT JOIN plans p ON p.id=l.plan_id ORDER BY l.id DESC LIMIT 100'),pool.query('SELECT u.id,u.name,u.email,u.role,u.created_at,p.name plan_name FROM users u LEFT JOIN plans p ON p.id=u.plan_id ORDER BY u.id DESC LIMIT 100')]);res.json({settings:s.rows[0],models:models.rows,plans:plans.rows,licenses:licenses.rows,users:users.rows});});
 app.put('/api/admin/settings',auth,admin,async(req,res)=>{const base=safeText(req.body.baseUrl,500);if(!/^https?:\/\//.test(base))return res.status(400).json({error:'آدرس معتبر نیست.'});if(req.body.apiKey)await pool.query('UPDATE ai_settings SET base_url=$1,api_key_encrypted=$2,updated_at=now() WHERE id=1',[base,encrypt(String(req.body.apiKey))]);else await pool.query('UPDATE ai_settings SET base_url=$1,updated_at=now() WHERE id=1',[base]);res.json({ok:true});});
 app.post('/api/admin/plans',auth,admin,async(req,res,next)=>{try{const q=await pool.query('INSERT INTO plans(name,slug,description) VALUES($1,$2,$3) RETURNING *',[safeText(req.body.name,80),safeText(req.body.slug,50).toLowerCase(),safeText(req.body.description,300)]);res.json({plan:q.rows[0]});}catch(e){next(e)}});
-app.post('/api/admin/models',auth,admin,async(req,res,next)=>{try{const q=await pool.query('INSERT INTO models(name,model_key,description,min_plan_id,enabled) VALUES($1,$2,$3,$4,true) RETURNING *',[safeText(req.body.name,80),safeText(req.body.modelKey,120),safeText(req.body.description,300),req.body.minPlanId||null]);res.json({model:q.rows[0]});}catch(e){next(e)}});
-app.patch('/api/admin/models/:id',auth,admin,async(req,res)=>{await pool.query('UPDATE models SET enabled=$1,min_plan_id=$2 WHERE id=$3',[!!req.body.enabled,req.body.minPlanId||null,req.params.id]);res.json({ok:true});});
+app.post('/api/admin/models',auth,admin,async(req,res,next)=>{try{const image=modelImageData(req.body.imageData);const q=await pool.query('INSERT INTO models(name,model_key,description,min_plan_id,image_data,enabled) VALUES($1,$2,$3,$4,$5,true) RETURNING *',[safeText(req.body.name,80),safeText(req.body.modelKey,120),safeText(req.body.description,300),req.body.minPlanId||null,image]);res.json({model:q.rows[0]});}catch(e){if(e.message?.includes('تصویر')||e.message?.includes('ابعاد')||e.message?.includes('حجم'))return res.status(400).json({error:e.message});next(e)}});
+app.patch('/api/admin/models/:id',auth,admin,async(req,res,next)=>{try{let image;let hasImage=false;if(Object.hasOwn(req.body,'imageData')){image=modelImageData(req.body.imageData);hasImage=true;}const q=hasImage?await pool.query('UPDATE models SET enabled=$1,min_plan_id=$2,image_data=$3 WHERE id=$4 RETURNING *',[!!req.body.enabled,req.body.minPlanId||null,image,req.params.id]):await pool.query('UPDATE models SET enabled=$1,min_plan_id=$2 WHERE id=$3 RETURNING *',[!!req.body.enabled,req.body.minPlanId||null,req.params.id]);res.json({ok:true,model:q.rows[0]});}catch(e){if(e.message?.includes('تصویر')||e.message?.includes('ابعاد')||e.message?.includes('حجم'))return res.status(400).json({error:e.message});next(e)}});
 app.post('/api/admin/licenses',auth,admin,async(req,res,next)=>{try{const code=safeText(req.body.code,80)||randomCode();const q=await pool.query('INSERT INTO licenses(code,plan_id,max_uses,expires_at) VALUES($1,$2,$3,$4) RETURNING *',[code,req.body.planId,Math.max(1,Number(req.body.maxUses)||1),req.body.expiresAt||null]);res.json({license:q.rows[0]});}catch(e){next(e)}});
 app.patch('/api/admin/licenses/:id',auth,admin,async(req,res)=>{await pool.query('UPDATE licenses SET active=$1 WHERE id=$2',[!!req.body.active,req.params.id]);res.json({ok:true});});
 

@@ -19,7 +19,7 @@
     <div class="side-label">گفت‌وگوها</div>
     <div id="chatList" class="chat-list"></div>
     <div class="side-footer">
-      <button id="planBtn" class="plan-card"><span class="plan-orb">✦</span><span class="plan-text"><b id="planName">پلن رایگان</b><small>ارتقا با کد لایسنس</small></span><span class="plan-arrow">‹</span></button>
+      <button id="planBtn" class="plan-card"><span class="plan-orb">✦</span><span class="plan-text"><b id="planName">پلن رایگان</b><small id="planHint">ارتقا با کد لایسنس</small></span><span class="plan-arrow">‹</span></button><button id="profileBtn" class="side-link"><span class="side-ico">◉</span> پروفایل من</button>
       <button id="adminBtn" class="side-link" hidden><span class="side-ico">⚙</span> پنل مدیریت</button>
       <button id="logoutBtn" class="side-link"><span class="side-ico">↩</span> خروج از حساب</button>
     </div>
@@ -54,7 +54,7 @@
   <div class="modal-head center"><div><h3>فعال‌سازی پلن</h3><p>کد لایسنس دریافتی را وارد کن تا مدل‌های حرفه‌ای باز شوند.</p></div><button class="icon-btn close-modal" aria-label="بستن">×</button></div>
   <form id="redeemForm"><label>کد لایسنس<input name="code" required placeholder="XXXX-XXXX-XXXX" dir="ltr" autocomplete="off"></label><button class="primary">فعال‌سازی</button></form>
 </div>
-<div id="adminModal" class="admin-drawer" hidden>
+<div id="profileModal" class="modal compact" hidden><div class="profile-top"><span class="profile-avatar" id="profileAvatar">ک</span><div><h3 id="profileName">کاربر</h3><p id="profileEmail">—</p></div></div><div class="profile-plan"><span>پلن فعلی</span><b id="profilePlan">رایگان</b></div><form id="profileForm"><label>نام نمایشی<input name="name" id="profileNameInput" required minlength="2" maxlength="80"></label><button class="primary">ذخیره تغییرات</button></form><div id="profileUpgrade" class="profile-upgrade"><b>ارتقای دسترسی</b><span>کد لایسنس داری؟ آن را فعال کن.</span><button id="profileRedeemBtn" class="secondary" type="button">وارد کردن کد</button></div><button class="icon-btn close-modal profile-close" aria-label="بستن">×</button></div>\n<div id="adminModal" class="admin-drawer" hidden>
   <div class="drawer-head"><div><h2>مدیریت سیستم</h2><p>مدل‌ها، اتصال و دسترسی کاربران</p></div><button class="icon-btn close-modal" aria-label="بستن">×</button></div>
   <div class="admin-tabs"><button class="active" data-admin-tab="overview">نمای کلی</button><button data-admin-tab="connection">اتصال AI</button><button data-admin-tab="models">مدل‌ها</button><button data-admin-tab="licenses">لایسنس‌ها</button><button data-admin-tab="users">کاربران</button></div>
   <div id="adminContent" class="admin-content"></div>
