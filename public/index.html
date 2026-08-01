@@ -27,8 +27,8 @@
   <main class="main">
     <header class="topbar">
       <button id="openSide" class="icon-btn mobile-only" aria-label="منو">☰</button>
+      <div class="workspace-brand"><b id="headerTitle">Pishi AI</b><small id="headerSubtitle">دستیار هوشمند</small></div>
       <div class="topbar-title"><b id="chatTitle">گفت‌وگوی جدید</b><small id="modelTitle">یک مدل را انتخاب کن</small></div>
-      <button id="modelPickerBtn" class="model-button"><span class="model-dot"></span><span id="modelBtnText">مدل‌ها</span><span class="chev">⌄</span></button>
     </header>
     <div id="emptyState" class="empty-state">
       <div class="hero-orb">✦</div>
@@ -38,7 +38,7 @@
     </div>
     <div id="messages" class="messages"></div>
     <div class="composer-wrap">
-      <form id="messageForm" class="composer"><textarea id="messageInput" rows="1" placeholder="پیامت را بنویس…" maxlength="12000"></textarea><button id="sendBtn" type="submit" aria-label="ارسال"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form>
+      <div class="composer-control"><button id="modelPickerBtn" class="model-switcher" type="button"><span class="model-dot"></span><span id="modelBtnText">انتخاب مدل</span><span class="chev">⌄</span></button><form id="messageForm" class="composer"><textarea id="messageInput" rows="1" placeholder="پیامت را بنویس…" maxlength="12000"></textarea><button id="sendBtn" type="submit" aria-label="ارسال"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></form></div>
       <small>پاسخ هوش مصنوعی ممکن است دقیق نباشد؛ اطلاعات مهم را بررسی کنید.</small>
     </div>
   </main>
