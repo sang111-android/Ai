@@ -56,7 +56,7 @@ function cleanEmail(v) { return String(v || '').trim().toLowerCase(); }
 function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
 function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
-const APP_VERSION='1.3.7';
+const APP_VERSION='1.3.8';
 const DEPLOYMENT_KEY=process.env.RAILWAY_DEPLOYMENT_ID||process.env.RAILWAY_DEPLOYMENT||`${APP_VERSION}:${process.env.RAILWAY_GIT_COMMIT_SHA||Date.now()}`;
 const MODEL_IMAGE_PRESETS=['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg','/assets/model-aurora.svg','/assets/model-mono.svg'];
 function modelImageData(value) {
@@ -76,12 +76,17 @@ async function auth(req, res, next) {
   try {
     const token = cookies(req).sid;
     if (!token) return res.status(401).json({ error: 'ابتدا وارد شوید.' });
-    const q = await pool.query(`SELECT u.id,u.email,u.name,u.role,u.plan_id,u.is_banned,p.name plan_name,p.slug plan_slug
+    const q = await pool.query(`SELECT u.id,u.email,u.name,u.role,u.plan_id,u.is_banned,u.ban_reason,u.banned_at,p.name plan_name,p.slug plan_slug
       FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN plans p ON p.id=u.plan_id
       WHERE s.token_hash=$1 AND s.expires_at>now()`, [crypto.createHash('sha256').update(token).digest('hex')]);
     if (!q.rows[0]) return res.status(401).json({ error: 'نشست منقضی شده است.' });
-    if(q.rows[0].is_banned) return res.status(403).json({error:'حساب شما توسط مدیریت مسدود شده است.'});
-    req.user=q.rows[0]; next();
+    req.user=q.rows[0];
+    // Keep a banned user signed in so they can see the restriction notice and its reason.
+    // Everything except identity/config/logout is denied below; chat history and sending are never exposed.
+    const allowedWhileBanned=['/me','/ui-config','/auth/logout'];
+    const apiPath=req.path.replace(/^\/api/,'');
+    if(req.user.is_banned&&!allowedWhileBanned.includes(apiPath)) return res.status(403).json({error:'حساب شما مسدود است.',banned:true,reason:req.user.ban_reason||'دلیلی توسط مدیریت ثبت نشده است.'});
+    next();
   } catch(e) { next(e); }
 }
 function admin(req,res,next) { if(req.user?.role !== 'admin') return res.status(403).json({error:'دسترسی ادمین لازم است.'}); next(); }
@@ -228,7 +233,7 @@ app.patch('/api/admin/models/:id',auth,admin,async(req,res,next)=>{try{const cur
 app.delete('/api/admin/models/:id',auth,admin,async(req,res,next)=>{const client=await pool.connect();try{const id=Number(req.params.id);if(!Number.isInteger(id)||id<1)return res.status(400).json({error:'شناسه مدل نامعتبر است.'});await client.query('BEGIN');const existing=(await client.query('SELECT id,name FROM models WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!existing){await client.query('ROLLBACK');return res.status(404).json({error:'مدل پیدا نشد.'});}await client.query('UPDATE chats SET model_id=NULL WHERE model_id=$1',[id]);await client.query('DELETE FROM models WHERE id=$1',[id]);await client.query('COMMIT');res.json({ok:true,deleted:existing});}catch(e){await client.query('ROLLBACK');next(e)}finally{client.release()}});
 app.patch('/api/admin/users/:id/plan',auth,admin,async(req,res)=>{const planId=Number(req.body.planId);const plan=(await pool.query('SELECT id,name FROM plans WHERE id=$1',[planId])).rows[0];if(!plan)return res.status(400).json({error:'پلن نامعتبر است.'});const user=(await pool.query('UPDATE users SET plan_id=$1 WHERE id=$2 RETURNING id,name,email',[planId,req.params.id])).rows[0];if(!user)return res.status(404).json({error:'کاربر پیدا نشد.'});res.json({ok:true,user,plan});});
 
-app.patch('/api/admin/users/:id/ban',auth,admin,async(req,res)=>{const target=(await pool.query('SELECT id,role FROM users WHERE id=$1',[req.params.id])).rows[0];if(!target)return res.status(404).json({error:'کاربر پیدا نشد.'});if(target.role==='admin')return res.status(400).json({error:'حساب مدیر قابل مسدودسازی نیست.'});const isBanned=Boolean(req.body.isBanned);const reason=isBanned?safeText(req.body.reason,300):'';await pool.query('UPDATE users SET is_banned=$1,banned_at=CASE WHEN $1 THEN now() ELSE NULL END,ban_reason=$2 WHERE id=$3',[isBanned,reason,target.id]);if(isBanned)await pool.query('DELETE FROM sessions WHERE user_id=$1',[target.id]);res.json({ok:true,isBanned});});
+app.patch('/api/admin/users/:id/ban',auth,admin,async(req,res)=>{const target=(await pool.query('SELECT id,role FROM users WHERE id=$1',[req.params.id])).rows[0];if(!target)return res.status(404).json({error:'کاربر پیدا نشد.'});if(target.role==='admin')return res.status(400).json({error:'حساب مدیر قابل مسدودسازی نیست.'});const isBanned=Boolean(req.body.isBanned);const reason=isBanned?safeText(req.body.reason,300):'';await pool.query('UPDATE users SET is_banned=$1,banned_at=CASE WHEN $1 THEN now() ELSE NULL END,ban_reason=$2 WHERE id=$3',[isBanned,reason,target.id]);res.json({ok:true,isBanned});});
 
 app.post('/api/admin/licenses',auth,admin,async(req,res,next)=>{try{const code=safeText(req.body.code,80)||randomCode();const q=await pool.query('INSERT INTO licenses(code,plan_id,max_uses,expires_at) VALUES($1,$2,$3,$4) RETURNING *',[code,req.body.planId,Math.max(1,Number(req.body.maxUses)||1),req.body.expiresAt||null]);res.json({license:q.rows[0]});}catch(e){next(e)}});
 app.post('/api/admin/models/purge',auth,admin,async(_req,res,next)=>{const client=await pool.connect();try{await client.query('BEGIN');await client.query('UPDATE chats SET model_id=NULL');const q=await client.query('DELETE FROM models');await client.query('COMMIT');res.json({ok:true,deleted:q.rowCount});}catch(e){await client.query('ROLLBACK');next(e)}finally{client.release()}});
