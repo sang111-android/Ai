@@ -56,21 +56,20 @@ function cleanEmail(v) { return String(v || '').trim().toLowerCase(); }
 function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
 function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
+const APP_VERSION='1.3.4';
+const DEPLOYMENT_KEY=process.env.RAILWAY_DEPLOYMENT_ID||process.env.RAILWAY_DEPLOYMENT||`${APP_VERSION}:${process.env.RAILWAY_GIT_COMMIT_SHA||Date.now()}`;
+const MODEL_IMAGE_PRESETS=['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg','/assets/model-aurora.svg','/assets/model-mono.svg'];
 function modelImageData(value) {
-  const presets=new Set(['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg']);
-  if (presets.has(String(value))) return String(value);
-  if (value === undefined || value === null || value === '') return '/assets/model-nebula.svg';
-  const match=String(value).match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
-  if (!match) throw new Error('تصویر مدل باید PNG یا JPEG باشد.');
-  const raw=Buffer.from(match[2],'base64');
-  if (raw.length > 1024*1024) throw new Error('حجم تصویر مدل نباید بیشتر از ۱ مگابایت باشد.');
-  let width=0,height=0;
-  if (match[1] === 'png' && raw.length >= 24 && raw.subarray(1,4).toString() === 'PNG') { width=raw.readUInt32BE(16); height=raw.readUInt32BE(20); }
-  if (match[1] === 'jpeg' && raw[0] === 0xff && raw[1] === 0xd8) {
-    let i=2; while (i < raw.length) { if(raw[i] !== 0xff) {i++; continue;} const marker=raw[i+1], len=raw.readUInt16BE(i+2); if([0xc0,0xc1,0xc2].includes(marker)) { height=raw.readUInt16BE(i+5); width=raw.readUInt16BE(i+7); break; } i += 2 + len; }
-  }
-  if (width !== 512 || height !== 512) throw new Error('ابعاد تصویر مدل باید دقیقاً ۵۱۲×۵۱۲ پیکسل باشد.');
-  return value;
+  const presets=new Set(MODEL_IMAGE_PRESETS);
+  if (value === undefined || value === null) return null;
+  const raw=String(value).trim();
+  if (raw === '' || raw === 'none') return null;
+  if (presets.has(raw)) return raw;
+  const match=raw.match(/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match) throw new Error('تصویر مدل باید یک فایل تصویری معتبر باشد (PNG، JPEG، WEBP، GIF یا SVG).');
+  const bytes=Buffer.from(match[2],'base64');
+  if (bytes.length > 4*1024*1024) throw new Error('حجم تصویر مدل نباید بیشتر از ۴ مگابایت باشد.');
+  return raw;
 }
 
 async function auth(req, res, next) {
@@ -94,6 +93,7 @@ async function createSession(res, userId) {
 
 async function migrate() {
   await pool.query(`
+  CREATE TABLE IF NOT EXISTS deployments(id BIGSERIAL PRIMARY KEY,deploy_key TEXT UNIQUE NOT NULL,version TEXT NOT NULL,commit_sha TEXT NOT NULL DEFAULT '',deployed_at TIMESTAMPTZ NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS plans(id BIGSERIAL PRIMARY KEY,name TEXT NOT NULL,slug TEXT UNIQUE NOT NULL,description TEXT DEFAULT '',created_at TIMESTAMPTZ DEFAULT now());
   CREATE TABLE IF NOT EXISTS users(id BIGSERIAL PRIMARY KEY,email TEXT UNIQUE NOT NULL,name TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',plan_id BIGINT REFERENCES plans(id),created_at TIMESTAMPTZ DEFAULT now());
   CREATE TABLE IF NOT EXISTS sessions(id BIGSERIAL PRIMARY KEY,user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,token_hash TEXT UNIQUE NOT NULL,expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ DEFAULT now());
@@ -123,9 +123,9 @@ async function migrate() {
   ON CONFLICT(slug) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description;
   `);
   const free=(await pool.query("SELECT id FROM plans WHERE slug='free'")).rows[0].id;
-  await pool.query(`INSERT INTO models(name,model_key,description,min_plan_id) VALUES
-    ('مدل سریع','gpt-4o-mini','سریع و مناسب کارهای روزمره',$1),
-    ('مدل حرفه‌ای','gpt-4o','قدرت بیشتر برای مسائل پیچیده',(SELECT id FROM plans WHERE slug='pro')) ON CONFLICT(model_key) DO NOTHING`,[free]);
+  void free;
+  // default models are intentionally NOT seeded; admins create models from /admin
+  await pool.query('INSERT INTO deployments(deploy_key,version,commit_sha) VALUES($1,$2,$3) ON CONFLICT(deploy_key) DO NOTHING',[DEPLOYMENT_KEY,APP_VERSION,process.env.RAILWAY_GIT_COMMIT_SHA||'']);
   const email=cleanEmail(process.env.ADMIN_EMAIL), pass=process.env.ADMIN_PASSWORD;
   if(email && pass) {
     const exists=await pool.query('SELECT id FROM users WHERE email=$1',[email]);
@@ -144,6 +144,7 @@ app.post('/api/auth/register', async(req,res,next)=>{try{
   const email=cleanEmail(req.body.email), name=safeText(req.body.name,80), password=String(req.body.password||'');
   if(!hasAllowedEmailDomain(email)||name.length<2||password.length<8) return res.status(400).json({error:'ثبت‌نام فقط با Gmail، Outlook یا دامنه in2.kdns.fr ممکن است؛ رمز هم باید حداقل ۸ کاراکتر باشد.'});
   const free=(await pool.query("SELECT id FROM plans WHERE slug='free'")).rows[0].id;
+  void free;
   const q=await pool.query('INSERT INTO users(email,name,password_hash,plan_id) VALUES($1,$2,$3,$4) RETURNING id',[email,name,await hashPassword(password),free]);
   await createSession(res,q.rows[0].id); res.json({ok:true});
 }catch(e){if(e.code==='23505')return res.status(409).json({error:'این ایمیل قبلاً ثبت شده است.'});next(e)}});
@@ -218,7 +219,7 @@ app.post('/api/chats/:id/messages',auth,async(req,res,next)=>{try{
   } catch(streamError) { console.error('AI stream error',{endpoint:safeEndpoint,error:String(streamError?.message||streamError)});emit('error',{error:'پاسخ مدل کامل نشد.',detail:String(streamError?.message||'خطای نامشخص')});res.end(); }
 }catch(e){next(e)}});
 
-app.get('/api/admin/overview',auth,admin,async(_req,res)=>{const [u,c,m,l]=await Promise.all([pool.query('SELECT count(*)::int n FROM users'),pool.query('SELECT count(*)::int n FROM chats'),pool.query('SELECT count(*)::int n FROM messages'),pool.query('SELECT count(*)::int n FROM licenses WHERE active=true')]);res.json({users:u.rows[0].n,chats:c.rows[0].n,messages:m.rows[0].n,licenses:l.rows[0].n});});
+app.get('/api/admin/overview',auth,admin,async(_req,res)=>{const [u,c,m,l,d]=await Promise.all([pool.query('SELECT count(*)::int n FROM users'),pool.query('SELECT count(*)::int n FROM chats'),pool.query('SELECT count(*)::int n FROM messages'),pool.query('SELECT count(*)::int n FROM licenses WHERE active=true'),pool.query('SELECT version,commit_sha,deployed_at FROM deployments ORDER BY deployed_at DESC LIMIT 10')]);res.json({users:u.rows[0].n,chats:c.rows[0].n,messages:m.rows[0].n,licenses:l.rows[0].n,version:APP_VERSION,deployments:d.rows});});
 app.get('/api/admin/config',auth,admin,async(_req,res)=>{const [s,models,plans,licenses,users]=await Promise.all([pool.query('SELECT base_url,header_title,header_subtitle,web_search_endpoint,web_search_enabled,(api_key_encrypted<>\'\') has_key,(web_search_key_encrypted<>\'\') has_web_key,updated_at FROM ai_settings WHERE id=1'),pool.query('SELECT m.*,p.name min_plan FROM models m LEFT JOIN plans p ON p.id=m.min_plan_id ORDER BY m.id'),pool.query('SELECT * FROM plans ORDER BY id'),pool.query('SELECT l.*,p.name plan_name FROM licenses l LEFT JOIN plans p ON p.id=l.plan_id ORDER BY l.id DESC LIMIT 100'),pool.query('SELECT u.id,u.name,u.email,u.role,u.created_at,u.is_banned,u.banned_at,u.ban_reason,p.name plan_name FROM users u LEFT JOIN plans p ON p.id=u.plan_id ORDER BY u.id DESC LIMIT 100')]);res.json({settings:s.rows[0],models:models.rows,plans:plans.rows,licenses:licenses.rows,users:users.rows});});
 app.put('/api/admin/settings',auth,admin,async(req,res)=>{const base=safeText(req.body.baseUrl,500),headerTitle=safeText(req.body.headerTitle,80)||'Pishi AI',headerSubtitle=safeText(req.body.headerSubtitle,120)||'دستیار هوشمند',webEndpoint=safeText(req.body.webSearchEndpoint,500)||'https://api.tavily.com/search',webEnabled=Boolean(req.body.webSearchEnabled);if(!/^https?:\/\//.test(base)||!/^https?:\/\//.test(webEndpoint))return res.status(400).json({error:'آدرس معتبر نیست.'});const current=(await pool.query('SELECT * FROM ai_settings WHERE id=1')).rows[0];const aiKey=req.body.apiKey?encrypt(String(req.body.apiKey)):current.api_key_encrypted;const webKey=req.body.webSearchKey?encrypt(String(req.body.webSearchKey)):current.web_search_key_encrypted;if(webEnabled&&!webKey)return res.status(400).json({error:'برای فعال‌سازی وب، API Key سرویس جست‌وجو را وارد کن.'});await pool.query('UPDATE ai_settings SET base_url=$1,header_title=$2,header_subtitle=$3,api_key_encrypted=$4,web_search_endpoint=$5,web_search_enabled=$6,web_search_key_encrypted=$7,updated_at=now() WHERE id=1',[base,headerTitle,headerSubtitle,aiKey,webEndpoint,webEnabled,webKey]);res.json({ok:true});});
 app.post('/api/admin/plans',auth,admin,async(req,res,next)=>{try{const q=await pool.query('INSERT INTO plans(name,slug,description) VALUES($1,$2,$3) RETURNING *',[safeText(req.body.name,80),safeText(req.body.slug,50).toLowerCase(),safeText(req.body.description,300)]);res.json({plan:q.rows[0]});}catch(e){next(e)}});
@@ -233,6 +234,7 @@ app.post('/api/admin/licenses',auth,admin,async(req,res,next)=>{try{const code=s
 app.patch('/api/admin/licenses/:id',auth,admin,async(req,res)=>{await pool.query('UPDATE licenses SET active=$1 WHERE id=$2',[!!req.body.active,req.params.id]);res.json({ok:true});});
 
 app.use((err,req,res,next)=>{console.error(err);if(res.headersSent)return next(err);res.status(500).json({error:'خطای داخلی سرور رخ داد.'});});
+app.get(['/admin','/admin/*','/chat','/chat/*'],(_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 app.use((_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 
 async function initializeDatabase(attempt=1) {

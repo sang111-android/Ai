@@ -24,4 +24,85 @@
 
 /* v1.3.3 — admin dark-system and compact mobile chat */
 .dark .admin-drawer{background:#10151e!important;border-color:rgba(213,229,255,.14)!important;color:#edf4ff!important}.dark .drawer-head h2,.dark .admin-content h3,.dark .admin-content b,.dark .admin-content label{color:#edf4ff!important}.dark .drawer-head p,.dark .admin-content .form-help,.dark .admin-content small{color:#9caabe!important}.dark .admin-tabs{border-color:rgba(213,229,255,.12)!important}.dark .admin-tabs button{color:#9caabe!important}.dark .admin-tabs button.active{color:#8fc1ff!important;border-color:#5ba6ff!important;background:rgba(91,166,255,.08)!important}.dark .stat,.dark .admin-section{background:#171e29!important;border-color:rgba(213,229,255,.12)!important;box-shadow:0 10px 25px rgba(0,0,0,.2)!important}.dark .admin-section .eyebrow{color:#8fc1ff!important}.dark .stat small,.dark .data-row small{color:#9caabe!important}.dark .admin-model{background:#1b2431!important;border-color:rgba(213,229,255,.12)!important}.dark .admin-model small{color:#9caabe!important}.dark .admin-model em,.dark .badge{background:#252f3e!important;color:#c9d8eb!important}.dark .admin-model button,.dark .toggle-license,.dark .save-user-plan{background:#202a37!important;border-color:rgba(213,229,255,.16)!important;color:#cfe3ff!important}.dark .delete-model,.dark .ban-user{background:rgba(229,100,88,.11)!important;color:#ffaaa1!important}.dark .data-row{border-color:rgba(213,229,255,.1)!important}.dark .admin-hero{box-shadow:0 16px 38px rgba(4,66,138,.3)!important}.dark .admin-content textarea,.dark .admin-content input,.dark .admin-content select,.dark .user-row select{background:#0e141d!important;color:#eff6ff!important;border-color:rgba(213,229,255,.16)!important}.dark .preset-image{margin-top:8px}.dark #modelEditorModal{background:rgba(2,5,9,.72)!important}.dark #modelEditorModal .editor-card{background:#171e29!important;color:#edf4ff!important}.dark .profile-plan,.dark .profile-upgrade{background:#1b2431!important;color:#edf4ff!important;border-color:rgba(213,229,255,.12)!important}
-@media(max-width:700px){body{font-size:14px}.main{min-height:100svh!important}.messages{width:100%!important;margin:0!important;padding:18px 12px 136px!important;overscroll-behavior:contain}.message{gap:8px;margin-bottom:18px}.message .avatar{width:30px;height:30px;border-radius:10px}.bubble{max-width:calc(100% - 38px)!important;font-size:14px;line-height:1.8}.composer-wrap{position:absolute!important;padding:14px 10px calc(8px + env(safe-area-inset-bottom))!important;background:linear-gradient(180deg,rgba(11,13,18,0),#0b0d12 35%)!important}.composer-control{display:grid!important;grid-template-columns:52px minmax(0,1fr)!important;gap:7px!important;align-items:center!important}.web-toggle{grid-column:1!important;grid-row:1!important;width:52px!important;min-height:38px!important;padding:0!important;border-radius:12px!important}.model-switcher{grid-column:2!important;grid-row:1!important;width:100%!important;min-height:38px!important;padding:0 10px!important;justify-content:center!important;font-size:12px!important}.composer-control .composer{grid-column:1/-1!important;grid-row:2!important;width:100%!important;min-height:48px!important;border-radius:15px!important}.composer textarea{max-height:96px!important;padding:8px 9px!important;font-size:16px!important}.composer button{width:38px!important;height:38px!important}.composer-wrap>small{display:none!important}.topbar{height:58px!important}.workspace-brand{max-width:37%!important}.topbar-title{max-width:38%!important}.admin-drawer{width:100%!important;padding:18px 14px!important}.admin-tabs{margin:0 -14px!important;padding:0 10px!important}.admin-tabs button{padding:11px 10px!important;font-size:12px!important}.admin-content{padding:18px 0!important}.stat-grid{gap:8px!important}.stat{padding:14px!important}.stat b{font-size:23px!important}.admin-section{padding:14px!important}.admin-model{flex-wrap:wrap!important}.admin-model span{min-width:calc(100% - 52px)!important}.admin-model button{min-height:34px!important}.modal{width:calc(100% - 18px)!important;padding:18px!important;border-radius:20px!important}.modal.compact{width:calc(100% - 18px)!important}}
+
+/* v1.3.4 — theme-correct composer + rebuilt mobile layout */
+.composer-wrap{background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.92) 30%,#fff 62%)}
+.dark .composer-wrap{background:linear-gradient(180deg,rgba(25,25,25,0) 0%,rgba(25,25,25,.94) 32%,#191919 62%)}
+.dark .composer{background:#202020;border-color:rgba(255,255,255,.18);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.dark .composer textarea{background:transparent;color:#fff}
+.dark .composer textarea::placeholder{color:rgba(255,255,255,.45)}
+.dark .composer-wrap>small{color:rgba(255,255,255,.5)}
+.dark .model-switcher{background:linear-gradient(135deg,#1d2635,#231f38);border-color:rgba(120,180,255,.28);color:#8fc1ff;box-shadow:none}
+.dark .web-toggle{background:rgba(94,159,232,.12);border-color:rgba(94,159,232,.32);color:#8fc1ff}
+.preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:10px 0}
+.preset-chip{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border:1px solid rgba(60,60,67,.16);border-radius:12px;background:#fff;cursor:pointer;font-size:11px;text-align:center;transition:.15s ease}
+.preset-chip input{position:absolute;opacity:0;pointer-events:none}
+.preset-chip img,.preset-chip .preset-none{width:42px;height:42px;border-radius:12px;object-fit:cover}
+.preset-chip .preset-none{display:grid;place-items:center;background:#F0EFED;color:#7D7A75;font-size:18px}
+.preset-chip:has(input:checked){border-color:#2783DE;background:#E5F2FC;box-shadow:0 0 0 2px rgba(39,131,222,.18)}
+.dark .preset-chip{background:#1b2431;border-color:rgba(213,229,255,.14);color:#edf4ff}
+.dark .preset-chip .preset-none{background:#252f3e;color:#9caabe}
+.dark .preset-chip:has(input:checked){border-color:#5E9FE8;background:rgba(94,159,232,.16);box-shadow:0 0 0 2px rgba(94,159,232,.28)}
+.image-field input[type=file]{width:100%;margin-top:4px;font-size:12px}
+
+@media(max-width:760px){
+.app-shell{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+body{font-size:14px}
+.app-shell{height:100dvh;grid-template-columns:1fr}
+.main{display:flex;flex-direction:column;height:100dvh;min-height:0}
+.messages{flex:1 1 auto;width:100%!important;margin:0!important;padding:14px 12px 10px!important;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.message{gap:8px;margin-bottom:16px}
+.message .avatar{width:30px;height:30px;border-radius:10px;flex:0 0 30px}
+.bubble{max-width:calc(100% - 40px)!important;font-size:14px;line-height:1.85;padding:11px 13px!important}
+.composer-wrap{position:static!important;flex:0 0 auto;padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;background:#fff!important;border-top:1px solid rgba(60,60,67,.14)}
+.dark .composer-wrap{background:#191919!important;border-top-color:rgba(255,255,255,.14)}
+.composer-wrap>small{display:none!important}
+.composer-control{display:grid!important;grid-template-columns:46px minmax(0,1fr)!important;gap:6px!important;align-items:center!important;width:100%!important}
+.web-toggle{grid-column:1!important;grid-row:1!important;width:46px!important;max-width:46px!important;min-height:40px!important;padding:0!important;gap:2px!important;border-radius:12px!important;font-size:0!important}
+.web-toggle{flex-direction:column!important;justify-content:center!important;overflow:hidden!important;box-sizing:border-box!important}
+.web-toggle::before{content:'وب';font-size:9px;font-weight:800;line-height:1}
+.web-toggle input{width:15px!important;height:15px!important;margin:0!important}
+
+
+.web-toggle input{width:18px;height:18px}
+.model-switcher{grid-column:2!important;grid-row:1!important;width:100%!important;min-height:40px!important;padding:0 10px!important;justify-content:center!important;font-size:12px!important;white-space:nowrap;overflow:hidden}
+.composer-control .composer{grid-column:1/-1!important;grid-row:2!important;width:100%!important;margin:0!important;min-height:46px!important;border-radius:15px!important;box-shadow:none!important}
+.composer textarea{max-height:104px!important;padding:9px 10px!important;font-size:16px!important;line-height:1.6}
+.composer button{width:40px!important;height:40px!important;flex:0 0 40px!important}
+.topbar{height:56px!important;padding:0 12px!important;gap:8px!important}
+.workspace-brand{max-width:34%!important}
+.topbar-title{max-width:40%!important}
+.topbar-title b{font-size:14px}
+.topbar .theme-btn,.topbar .icon-btn{width:40px;height:40px}
+.web-sources{margin:4px 0 12px!important;max-width:100%!important}
+.empty-state{padding:18px 12px}
+.quick-grid{grid-template-columns:1fr!important}
+.admin-drawer{width:100%!important;max-width:100%!important;padding:16px 14px calc(16px + env(safe-area-inset-bottom))!important;overflow-y:auto}
+.drawer-head h2{font-size:18px}
+.admin-tabs{display:flex!important;margin:0 -14px!important;padding:0 12px!important;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.admin-tabs::-webkit-scrollbar{display:none}
+.admin-tabs button{flex:0 0 auto;padding:12px 12px!important;font-size:12px!important;min-height:44px}
+.admin-content{padding:16px 0!important}
+.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+.stat{padding:14px!important}
+.stat b{font-size:22px!important}
+.admin-section{padding:14px!important}
+.form-grid{grid-template-columns:1fr!important}
+.admin-models{grid-template-columns:1fr!important}
+.admin-model{flex-wrap:wrap!important}
+.admin-model button{min-height:40px!important}
+.data-row,.user-row{grid-template-columns:1fr!important;gap:6px!important}
+.user-row select,.user-row button{width:100%;min-height:42px}
+.modal{width:calc(100% - 16px)!important;max-height:calc(100dvh - 32px)!important;padding:18px!important;border-radius:20px!important;overflow-y:auto}
+.modal.compact{width:calc(100% - 16px)!important}
+.preset-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.model-row{padding:12px!important;min-height:56px}
+}
+@media(max-width:390px){
+.composer-control{grid-template-columns:42px minmax(0,1fr)!important}
+.web-toggle{width:42px!important}
+.preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.stat-grid{grid-template-columns:1fr!important}
+}
