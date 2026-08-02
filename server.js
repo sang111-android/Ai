@@ -7,8 +7,6 @@ import { fileURLToPath } from 'node:url';
 const { Pool } = pg;
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
-const APP_VERSION = '1.3.2';
-const DEPLOYMENT_KEY = process.env.RAILWAY_DEPLOYMENT_ID || process.env.RAILWAY_DEPLOYMENT || `${APP_VERSION}:${process.env.RAILWAY_GIT_COMMIT_SHA || Date.now()}`;
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const ENC_SECRET = process.env.APP_ENCRYPTION_KEY || '';
 const configErrors = [];
@@ -59,7 +57,9 @@ function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
 function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
 function modelImageData(value) {
-  if (value === undefined || value === null || value === '') return null;
+  const presets=new Set(['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg']);
+  if (presets.has(String(value))) return String(value);
+  if (value === undefined || value === null || value === '') return '/assets/model-nebula.svg';
   const match=String(value).match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error('تصویر مدل باید PNG یا JPEG باشد.');
   const raw=Buffer.from(match[2],'base64');
@@ -105,7 +105,6 @@ async function migrate() {
   CREATE TABLE IF NOT EXISTS messages(id BIGSERIAL PRIMARY KEY,chat_id BIGINT REFERENCES chats(id) ON DELETE CASCADE,role TEXT NOT NULL,content TEXT NOT NULL,created_at TIMESTAMPTZ DEFAULT now());
   CREATE TABLE IF NOT EXISTS user_memories(id BIGSERIAL PRIMARY KEY,user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,title TEXT NOT NULL,content TEXT NOT NULL,created_at TIMESTAMPTZ DEFAULT now(),updated_at TIMESTAMPTZ DEFAULT now());
   CREATE TABLE IF NOT EXISTS user_skills(id BIGSERIAL PRIMARY KEY,user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,instructions TEXT NOT NULL,created_at TIMESTAMPTZ DEFAULT now(),updated_at TIMESTAMPTZ DEFAULT now());
-  CREATE TABLE IF NOT EXISTS deployments(id BIGSERIAL PRIMARY KEY,deploy_key TEXT UNIQUE NOT NULL,version TEXT NOT NULL,commit_sha TEXT NOT NULL DEFAULT '',deployed_at TIMESTAMPTZ NOT NULL DEFAULT now());
   ALTER TABLE models ADD COLUMN IF NOT EXISTS image_data TEXT;
   ALTER TABLE models ADD COLUMN IF NOT EXISTS system_prompt TEXT NOT NULL DEFAULT '';
   ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS header_title TEXT NOT NULL DEFAULT 'Pishi AI';
@@ -124,8 +123,9 @@ async function migrate() {
   ON CONFLICT(slug) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description;
   `);
   const free=(await pool.query("SELECT id FROM plans WHERE slug='free'")).rows[0].id;
-  // مدل‌های پیش‌فرض هرگز هنگام Deploy دوباره ساخته نمی‌شوند؛ مدیریت مدل فقط از پنل ادمین انجام می‌شود.
-  await pool.query('INSERT INTO deployments(deploy_key,version,commit_sha) VALUES($1,$2,$3) ON CONFLICT(deploy_key) DO NOTHING',[DEPLOYMENT_KEY,APP_VERSION,process.env.RAILWAY_GIT_COMMIT_SHA||'']);
+  await pool.query(`INSERT INTO models(name,model_key,description,min_plan_id) VALUES
+    ('مدل سریع','gpt-4o-mini','سریع و مناسب کارهای روزمره',$1),
+    ('مدل حرفه‌ای','gpt-4o','قدرت بیشتر برای مسائل پیچیده',(SELECT id FROM plans WHERE slug='pro')) ON CONFLICT(model_key) DO NOTHING`,[free]);
   const email=cleanEmail(process.env.ADMIN_EMAIL), pass=process.env.ADMIN_PASSWORD;
   if(email && pass) {
     const exists=await pool.query('SELECT id FROM users WHERE email=$1',[email]);
@@ -218,7 +218,7 @@ app.post('/api/chats/:id/messages',auth,async(req,res,next)=>{try{
   } catch(streamError) { console.error('AI stream error',{endpoint:safeEndpoint,error:String(streamError?.message||streamError)});emit('error',{error:'پاسخ مدل کامل نشد.',detail:String(streamError?.message||'خطای نامشخص')});res.end(); }
 }catch(e){next(e)}});
 
-app.get('/api/admin/overview',auth,admin,async(_req,res)=>{const [u,c,m,l,d]=await Promise.all([pool.query('SELECT count(*)::int n FROM users'),pool.query('SELECT count(*)::int n FROM chats'),pool.query('SELECT count(*)::int n FROM messages'),pool.query('SELECT count(*)::int n FROM licenses WHERE active=true'),pool.query('SELECT version,commit_sha,deployed_at FROM deployments ORDER BY deployed_at DESC LIMIT 20')]);res.json({users:u.rows[0].n,chats:c.rows[0].n,messages:m.rows[0].n,licenses:l.rows[0].n,deployments:d.rows});});
+app.get('/api/admin/overview',auth,admin,async(_req,res)=>{const [u,c,m,l]=await Promise.all([pool.query('SELECT count(*)::int n FROM users'),pool.query('SELECT count(*)::int n FROM chats'),pool.query('SELECT count(*)::int n FROM messages'),pool.query('SELECT count(*)::int n FROM licenses WHERE active=true')]);res.json({users:u.rows[0].n,chats:c.rows[0].n,messages:m.rows[0].n,licenses:l.rows[0].n});});
 app.get('/api/admin/config',auth,admin,async(_req,res)=>{const [s,models,plans,licenses,users]=await Promise.all([pool.query('SELECT base_url,header_title,header_subtitle,web_search_endpoint,web_search_enabled,(api_key_encrypted<>\'\') has_key,(web_search_key_encrypted<>\'\') has_web_key,updated_at FROM ai_settings WHERE id=1'),pool.query('SELECT m.*,p.name min_plan FROM models m LEFT JOIN plans p ON p.id=m.min_plan_id ORDER BY m.id'),pool.query('SELECT * FROM plans ORDER BY id'),pool.query('SELECT l.*,p.name plan_name FROM licenses l LEFT JOIN plans p ON p.id=l.plan_id ORDER BY l.id DESC LIMIT 100'),pool.query('SELECT u.id,u.name,u.email,u.role,u.created_at,u.is_banned,u.banned_at,u.ban_reason,p.name plan_name FROM users u LEFT JOIN plans p ON p.id=u.plan_id ORDER BY u.id DESC LIMIT 100')]);res.json({settings:s.rows[0],models:models.rows,plans:plans.rows,licenses:licenses.rows,users:users.rows});});
 app.put('/api/admin/settings',auth,admin,async(req,res)=>{const base=safeText(req.body.baseUrl,500),headerTitle=safeText(req.body.headerTitle,80)||'Pishi AI',headerSubtitle=safeText(req.body.headerSubtitle,120)||'دستیار هوشمند',webEndpoint=safeText(req.body.webSearchEndpoint,500)||'https://api.tavily.com/search',webEnabled=Boolean(req.body.webSearchEnabled);if(!/^https?:\/\//.test(base)||!/^https?:\/\//.test(webEndpoint))return res.status(400).json({error:'آدرس معتبر نیست.'});const current=(await pool.query('SELECT * FROM ai_settings WHERE id=1')).rows[0];const aiKey=req.body.apiKey?encrypt(String(req.body.apiKey)):current.api_key_encrypted;const webKey=req.body.webSearchKey?encrypt(String(req.body.webSearchKey)):current.web_search_key_encrypted;if(webEnabled&&!webKey)return res.status(400).json({error:'برای فعال‌سازی وب، API Key سرویس جست‌وجو را وارد کن.'});await pool.query('UPDATE ai_settings SET base_url=$1,header_title=$2,header_subtitle=$3,api_key_encrypted=$4,web_search_endpoint=$5,web_search_enabled=$6,web_search_key_encrypted=$7,updated_at=now() WHERE id=1',[base,headerTitle,headerSubtitle,aiKey,webEndpoint,webEnabled,webKey]);res.json({ok:true});});
 app.post('/api/admin/plans',auth,admin,async(req,res,next)=>{try{const q=await pool.query('INSERT INTO plans(name,slug,description) VALUES($1,$2,$3) RETURNING *',[safeText(req.body.name,80),safeText(req.body.slug,50).toLowerCase(),safeText(req.body.description,300)]);res.json({plan:q.rows[0]});}catch(e){next(e)}});
