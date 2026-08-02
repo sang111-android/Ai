@@ -56,7 +56,7 @@ function cleanEmail(v) { return String(v || '').trim().toLowerCase(); }
 function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
 function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
-const APP_VERSION='1.3.4';
+const APP_VERSION='1.3.5';
 const DEPLOYMENT_KEY=process.env.RAILWAY_DEPLOYMENT_ID||process.env.RAILWAY_DEPLOYMENT||`${APP_VERSION}:${process.env.RAILWAY_GIT_COMMIT_SHA||Date.now()}`;
 const MODEL_IMAGE_PRESETS=['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg','/assets/model-aurora.svg','/assets/model-mono.svg'];
 function modelImageData(value) {
@@ -234,7 +234,10 @@ app.post('/api/admin/licenses',auth,admin,async(req,res,next)=>{try{const code=s
 app.patch('/api/admin/licenses/:id',auth,admin,async(req,res)=>{await pool.query('UPDATE licenses SET active=$1 WHERE id=$2',[!!req.body.active,req.params.id]);res.json({ok:true});});
 
 app.use((err,req,res,next)=>{console.error(err);if(res.headersSent)return next(err);res.status(500).json({error:'خطای داخلی سرور رخ داد.'});});
-app.get(['/admin','/admin/*','/chat','/chat/*'],(_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
+// SPA fallback: every non-API GET (including /admin and /chat) serves index.html.
+// NOTE: never register string routes containing '*' here — Express 5 uses
+// path-to-regexp v8, which throws at boot for unnamed wildcards and the
+// container would never start.
 app.use((_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 
 async function initializeDatabase(attempt=1) {
