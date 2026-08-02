@@ -1,4 +1,4 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#fbfbfd"><title>Pishi AI</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#fbfbfd"><title>پنل مدیریت — Pishi AI</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head><body data-page="admin">
 <div id="modelEditorModal" class="modal" hidden></div>
 <div id="toast" class="toast" role="status"></div>
 <section id="authView" class="auth-wrap">
@@ -56,8 +56,9 @@
   <form id="redeemForm"><label>کد لایسنس<input name="code" required placeholder="XXXX-XXXX-XXXX" dir="ltr" autocomplete="off"></label><button class="primary">فعال‌سازی</button></form>
 </div>
 <div id="profileModal" class="modal compact" hidden><div class="profile-top"><span class="profile-avatar" id="profileAvatar">ک</span><div><h3 id="profileName">کاربر</h3><p id="profileEmail">—</p></div></div><div class="profile-plan"><span>پلن فعلی</span><b id="profilePlan">رایگان</b></div><form id="profileForm"><label>نام نمایشی<input name="name" id="profileNameInput" required minlength="2" maxlength="80"></label><button class="primary">ذخیره تغییرات</button></form><div id="profileUpgrade" class="profile-upgrade"><b>ارتقای دسترسی</b><span>کد لایسنس داری؟ آن را فعال کن.</span><button id="profileRedeemBtn" class="secondary" type="button">وارد کردن کد</button></div><button class="icon-btn close-modal profile-close" aria-label="بستن">×</button></div>
-<div id="adminModal" class="admin-drawer" hidden>
-  <div class="drawer-head"><div><h2>مدیریت سیستم</h2><p>مدل‌ها، اتصال و دسترسی کاربران</p></div><button class="icon-btn close-modal" aria-label="بستن">×</button></div>
+<div id="adminModal" class="admin-page" hidden>
+  <div class="admin-topbar"><a class="back-link" href="/">‹ بازگشت به گفت‌وگو</a><button id="adminThemeBtn" class="icon-btn theme-btn" title="تغییر حالت رنگ">◐</button></div>
+  <div class="drawer-head"><div><h2>مدیریت سیستم</h2><p>مدل‌ها، اتصال و دسترسی کاربران</p></div></div>
   <div class="admin-tabs"><button class="active" data-admin-tab="overview">نمای کلی</button><button data-admin-tab="connection">اتصال AI</button><button data-admin-tab="models">مدل‌ها</button><button data-admin-tab="licenses">لایسنس‌ها</button><button data-admin-tab="users">کاربران</button></div>
   <div id="adminContent" class="admin-content"></div>
 </div>

@@ -106,3 +106,63 @@ body{font-size:14px}
 .preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .stat-grid{grid-template-columns:1fr!important}
 }
+
+/* v1.3.6 — standalone admin page + fully themed admin surfaces */
+body[data-page="admin"]{background:#f5f5f7}
+body[data-page="admin"].dark{background:#0d1117}
+.admin-page{position:relative!important;inset:auto!important;transform:none!important;display:block!important;width:100%!important;max-width:1120px!important;margin:0 auto!important;min-height:100dvh;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;overflow:visible!important;padding:8px 20px calc(56px + env(safe-area-inset-bottom))!important;z-index:1!important}
+.admin-page .drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:6px 0 14px}
+.admin-page .drawer-head h2{margin:0 0 4px;font-size:24px;letter-spacing:-.4px}
+.admin-page .drawer-head p{margin:0;color:#86868b;font-size:13px}
+.admin-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 0 4px}
+.admin-topbar .back-link{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid rgba(60,60,67,.16);background:#fff;color:#1d1d1f;font:600 13px "Vazirmatn",Tahoma,sans-serif;text-decoration:none}
+.admin-topbar .back-link:hover{background:#f0f0f3}
+.admin-search{display:flex;align-items:center;gap:8px;margin:8px 0 14px;padding:0 12px;border:1px solid rgba(60,60,67,.16);border-radius:12px;background:#fff;min-height:44px}
+.admin-search .search-ico{color:#86868b;font-size:15px}
+.admin-search input{flex:1;min-width:0;min-height:42px;border:0!important;background:transparent!important;outline:none;color:inherit;font:500 14px "Vazirmatn",Tahoma,sans-serif}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+button.danger{min-height:38px;padding:0 14px;border-radius:10px;border:1px solid rgba(217,63,48,.28);background:#fff5f4;color:#c0392b;font:600 12px "Vazirmatn",Tahoma,sans-serif;cursor:pointer}
+button.danger:hover{background:#ffe9e6}
+
+/* dark mode — the standalone page and every control inside it */
+.dark .admin-page,.dark .admin-page .admin-content{color:#edf4ff!important}
+.dark .admin-page .drawer-head h2,.dark .admin-page h3,.dark .admin-page b,.dark .admin-page label{color:#edf4ff!important}
+.dark .admin-page .drawer-head p,.dark .admin-page .form-help,.dark .admin-page small,.dark .admin-page em{color:#93a6bd!important}
+.dark .admin-topbar .back-link{background:#161c26;border-color:rgba(213,229,255,.18);color:#edf4ff}
+.dark .admin-topbar .back-link:hover{background:#1c2431}
+.dark .admin-topbar .theme-btn{background:#161c26!important;border-color:rgba(213,229,255,.18)!important;color:#edf4ff!important}
+.dark .admin-search{background:#151b25!important;border-color:rgba(213,229,255,.16)!important;color:#edf4ff!important}
+.dark .admin-search .search-ico{color:#8296ae!important}
+.dark .admin-content input,.dark .admin-content select,.dark .admin-content textarea,.dark .admin-page input,.dark .admin-page select,.dark .admin-page textarea{background:#151b25!important;border:1px solid rgba(213,229,255,.16)!important;color:#edf4ff!important}
+.dark .admin-search input{background:transparent!important;border:0!important}
+.dark .admin-content input::placeholder,.dark .admin-content textarea::placeholder,.dark .admin-page input::placeholder{color:#8296ae!important}
+.dark .admin-content input[type=search]::-webkit-search-cancel-button{filter:invert(1) opacity(.65)}
+.dark .admin-content option{background:#151b25;color:#edf4ff}
+.dark .admin-page .admin-section,.dark .admin-page .stat,.dark .admin-page .data-row,.dark .admin-page .admin-model{background:#141a24!important;border-color:rgba(213,229,255,.12)!important;color:#edf4ff!important}
+.dark .admin-page .admin-tabs{border-color:rgba(213,229,255,.12)!important;background:transparent!important}
+.dark .admin-page .admin-tabs button{color:#93a6bd!important;background:transparent!important}
+.dark .admin-page .admin-tabs button.active{color:#79b0ff!important}
+.dark .admin-content button:not(.primary):not(.danger):not(.icon-btn){background:#1b2331!important;color:#dbe7fa!important;border-color:rgba(213,229,255,.18)!important}
+.dark button.danger{background:#2a1618!important;border-color:rgba(255,120,110,.3)!important;color:#ff9e94!important}
+.dark .admin-page .admin-lock{background:#1b2331!important;color:#9fb2c9!important}
+
+@media(max-width:700px){
+  .admin-page{padding:4px 12px calc(44px + env(safe-area-inset-bottom))!important;max-width:100%!important}
+  .admin-page .drawer-head h2{font-size:20px}
+  .admin-topbar{position:sticky;top:0;z-index:6;background:inherit;padding:10px 0 8px}
+  .admin-page .admin-tabs{margin:0 -12px!important;padding:0 10px!important}
+  .section-head{align-items:stretch}
+  .section-head button.danger{width:100%}
+}
+
+/* v1.3.7 — user AI-output consumption */
+.usage-chip{display:inline-flex;align-items:baseline;gap:5px;margin-top:7px;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#006edc;font-size:11px;font-weight:700;white-space:normal}
+.usage-chip small{font-size:10px!important;color:#47749e!important;font-weight:500}
+.usage-stat{background:linear-gradient(145deg,#eff8ff,#f7f3ff)!important}
+.dark .usage-chip{background:#102b43!important;color:#8fcaff!important}.dark .usage-chip small{color:#aec5dc!important}.dark .usage-stat{background:linear-gradient(145deg,#122c43,#20203b)!important}
+@media(max-width:700px){.usage-chip{max-width:100%;white-space:normal;line-height:1.65}.usage-stat{grid-column:span 2}}
+/* v1.3.7.1 — web search settings must not leak light colors into admin dark mode */
+.dark .admin-page .web-settings,.dark .admin-drawer .web-settings{background:#141a24!important;border-color:rgba(213,229,255,.14)!important;color:#edf4ff!important}
+.dark .admin-page .web-settings .eyebrow,.dark .admin-drawer .web-settings .eyebrow,.dark .admin-page .web-settings label,.dark .admin-drawer .web-settings label{color:#dbe7fa!important}
+.dark .admin-page .web-settings .switch-line,.dark .admin-drawer .web-settings .switch-line{background:transparent!important}
+.dark .admin-page .web-settings input[type=checkbox],.dark .admin-drawer .web-settings input[type=checkbox]{accent-color:#2997ff!important}
