@@ -56,7 +56,7 @@ function cleanEmail(v) { return String(v || '').trim().toLowerCase(); }
 function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
 function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
-const APP_VERSION='1.3.8';
+const APP_VERSION='1.3.9';
 const DEPLOYMENT_KEY=process.env.RAILWAY_DEPLOYMENT_ID||process.env.RAILWAY_DEPLOYMENT||`${APP_VERSION}:${process.env.RAILWAY_GIT_COMMIT_SHA||Date.now()}`;
 const MODEL_IMAGE_PRESETS=['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg','/assets/model-aurora.svg','/assets/model-mono.svg'];
 function modelImageData(value) {
@@ -244,6 +244,8 @@ app.use((err,req,res,next)=>{console.error(err);if(res.headersSent)return next(e
 // Exact string routes only — no '*' patterns (Express 5 would throw at boot).
 app.get('/admin',(_req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/admin/',(_req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
+app.get('/admin-model-edit',(_req,res)=>res.sendFile(path.join(__dirname,'public','admin-model-edit.html')));
+app.get('/admin-model-edit/',(_req,res)=>res.sendFile(path.join(__dirname,'public','admin-model-edit.html')));
 // SPA fallback: every non-API GET (including /admin and /chat) serves index.html.
 // NOTE: never register string routes containing '*' here — Express 5 uses
 // path-to-regexp v8, which throws at boot for unnamed wildcards and the
