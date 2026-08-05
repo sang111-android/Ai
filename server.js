@@ -56,7 +56,7 @@ function cleanEmail(v) { return String(v || '').trim().toLowerCase(); }
 function safeText(v, max=200) { return String(v || '').trim().slice(0,max); }
 function randomCode() { return crypto.randomBytes(9).toString('base64url').toUpperCase(); }
 function hasAllowedEmailDomain(email) { return /@(gmail\.com|outlook\.com|in2\.kdns\.fr)$/i.test(email); }
-const APP_VERSION='1.4.9';
+const APP_VERSION='1.5.0';
 const DEPLOYMENT_KEY=process.env.RAILWAY_DEPLOYMENT_ID||process.env.RAILWAY_DEPLOYMENT||`${APP_VERSION}:${process.env.RAILWAY_GIT_COMMIT_SHA||Date.now()}`;
 const MODEL_IMAGE_PRESETS=['/assets/model-nebula.svg','/assets/model-ember.svg','/assets/model-forest.svg','/assets/model-slate.svg','/assets/model-aurora.svg','/assets/model-mono.svg'];
 function modelImageData(value) {
@@ -175,6 +175,10 @@ app.post('/api/licenses/redeem',auth,async(req,res,next)=>{const client=await po
 }catch(e){await client.query('ROLLBACK');if(e.code==='23505')return res.status(400).json({error:'این کد قبلاً توسط شما استفاده شده است.'});next(e)}finally{client.release()}});
 
 app.get('/api/memories',auth,async(req,res)=>res.json({memories:(await pool.query('SELECT id,title,content,created_at FROM user_memories WHERE user_id=$1 ORDER BY updated_at DESC',[req.user.id])).rows}));
+async function learnFromConversation({user,set,modelKey,userText,answer}){try{if(!set?.base_url||!set?.api_key_encrypted)return;const prompt=`از مکالمه زیر فقط در صورت وجود یک ترجیح پایدار، واقعیت شخصی مفید، یا درخواست صریح کاربر برای به‌خاطر سپردن، یک حافظه استخراج کن. اگر کاربر پلن business دارد و در گفتگو یک روش کاری تکرارشونده و قابل استفاده در گفتگوهای بعدی تعریف شده، یک Skill هم بساز. پاسخ فقط JSON معتبر باشد: {"memory":null|{"title":"","content":""},"skill":null|{"name":"","instructions":""}}. از متن‌های حساس، گذرا، درخواست‌های صرف یا محتوای نامطمئن چیزی ذخیره نکن.
+کاربر: ${safeText(userText,12000)}
+پاسخ: ${safeText(answer,12000)}`;const r=await fetch(set.base_url,{method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${decrypt(set.api_key_encrypted)}`},body:JSON.stringify({model:modelKey,messages:[{role:'system',content:'تو استخراج‌کننده حافظه و Skill هستی. فقط JSON بده.'},{role:'user',content:prompt}],temperature:0,stream:false})});if(!r.ok)return;const raw=(await r.json())?.choices?.[0]?.message?.content||'';const json=JSON.parse(raw.replace(/^```json\s*|\s*```$/g,''));const mem=json.memory;if(mem&&safeText(mem.title,100).length>=2&&safeText(mem.content,30000).length>=10){const title=safeText(mem.title,100),content=safeText(mem.content,30000);const old=(await pool.query('SELECT id FROM user_memories WHERE user_id=$1 AND title=$2 LIMIT 1',[user.id,title])).rows[0];if(old)await pool.query('UPDATE user_memories SET content=$1,updated_at=now() WHERE id=$2',[content,old.id]);else await pool.query('INSERT INTO user_memories(user_id,title,content) VALUES($1,$2,$3)',[user.id,title,content]);}const skill=json.skill;if((user.role==='admin'||user.plan_slug==='business')&&skill&&safeText(skill.name,80).length>=2&&safeText(skill.instructions,30000).length>=10){const name=safeText(skill.name,80),instructions=safeText(skill.instructions,30000),old=(await pool.query('SELECT id FROM user_skills WHERE user_id=$1 AND name=$2 LIMIT 1',[user.id,name])).rows[0];if(old)await pool.query('UPDATE user_skills SET instructions=$1,updated_at=now() WHERE id=$2',[instructions,old.id]);else await pool.query('INSERT INTO user_skills(user_id,name,instructions) VALUES($1,$2,$3)',[user.id,name,instructions]);}}catch(e){console.error('Automatic learning skipped',String(e.message||e))}}
+
 app.post('/api/memories',auth,async(req,res)=>{const title=safeText(req.body.title,100),content=safeText(req.body.content,30000);if(title.length<2||content.length<10)return res.status(400).json({error:'عنوان و محتوای یادگیری را کامل وارد کنید.'});const q=await pool.query('INSERT INTO user_memories(user_id,title,content) VALUES($1,$2,$3) RETURNING id,title,content,created_at',[req.user.id,title,content]);res.json({memory:q.rows[0]});});
 app.delete('/api/memories/:id',auth,async(req,res)=>{await pool.query('DELETE FROM user_memories WHERE id=$1 AND user_id=$2',[req.params.id,req.user.id]);res.json({ok:true});});
 function businessOnly(req,res,next){if(req.user.role==='admin'||req.user.plan_slug==='business')return next();return res.status(403).json({error:'ساخت و آموزش Skill فقط برای پلن بیزنس فعال است.'});}
@@ -239,7 +243,7 @@ ${contextMessage.content}`:''
     if(!answer)throw new Error(`مدل «${c.model_key}» خروجی استاندارد برنگرداند.`);
     await pool.query('INSERT INTO messages(chat_id,role,content) VALUES($1,\'assistant\',$2)',[c.id,answer]);
     const count=(await pool.query('SELECT count(*)::int n FROM messages WHERE chat_id=$1',[c.id])).rows[0].n;if(count===2)await pool.query('UPDATE chats SET title=$1,updated_at=now() WHERE id=$2',[content.slice(0,55),c.id]);else await pool.query('UPDATE chats SET updated_at=now() WHERE id=$1',[c.id]);
-    emit('done',{content:answer});res.end();
+    void learnFromConversation({user:req.user,set,modelKey:c.model_key,userText:content,answer});emit('done',{content:answer});res.end();
   } catch(streamError) { console.error('AI stream error',{endpoint:safeEndpoint,error:String(streamError?.message||streamError)});emit('error',{error:'پاسخ مدل کامل نشد.',detail:String(streamError?.message||'خطای نامشخص')});res.end(); }
 }catch(e){next(e)}});
 
